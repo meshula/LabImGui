@@ -10,11 +10,9 @@ window support on this project is not implemented.
 
 Tested on
 
-+--------------+----+
 | Platform/SDK | GL |
-+--------------+----+
+| ------------ | -- |
 | Windows      | GL |
-+--------------+----+
 
 ```cpp
 #include <GL/gl3w.h>
