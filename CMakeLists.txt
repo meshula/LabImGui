@@ -4,7 +4,9 @@ set(LABIMGUI_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 cmake_policy(SET CMP0077 NEW)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# if a target named glfw is not defined, fetch it and build it
+find_package(OpenGL REQUIRED)
+
+#if arget named glfw is not defined, fetch it and build it
 include(glfw.cmake)
 
 # configure Dear Imgui, once again, fetching it if necessary
@@ -22,7 +24,8 @@ add_library(LabImgui STATIC
     LabImGui-gl-glfw.cpp
     Widgets.cpp
     fontmanager.cpp
-    LabImgui/FontManger.h
+    GL/gl3w.c
+    LabImgui/FontManager.h
     LabImgui/LabImgui-gl-glfw.h
     LabImgui/Widgets.h
     LabImgui/materialIconDefinitions.h
@@ -30,13 +33,15 @@ add_library(LabImgui STATIC
     LabImgui/roboto_regular.ttf.h
     LabImgui/robotomono_regular.ttf.h
 )
+set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
 target_link_libraries(LabImgui Dear::Imgui glfw)
+target_include_directories(LabImgui PUBLIC ${CMAKE_SOURCE_DIR} ${imgui_SOURCE_DIR} ${glfw_SOURCE_DIR})
 add_library(Lab::Imgui ALIAS LabImgui)
 
 add_executable(LabImguiHello LabImguiHello.cpp)
 target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui glfw ${LABIMGUI_RENDER_SYSTEM})
-set_property(LabImGuiHello PROPERTY CXX_STANDARD 17)
-install(TARGETS LabImGuiHello
+set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
+install(TARGETS LabImguiHello
     BUNDLE DESTINATION bin
     RUNTIME DESTINATION bin)
 

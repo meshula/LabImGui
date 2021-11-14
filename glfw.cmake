@@ -5,6 +5,7 @@ if (TARGET glfw)
 else()
     message(STATUS "Installing glfw")
 
+    include(FetchContent)
     FetchContent_Declare(glfw
         GIT_REPOSITORY "https://github.com/glfw/glfw.git"
         GIT_TAG "master"

@@ -9,9 +9,10 @@ if (TARGET Dear::Imgui)
 else()
     message(STATUS "Installing Dear Imgui")
 
+    include(FetchContent)
     FetchContent_Declare(imgui
         GIT_REPOSITORY "https://github.com/ocornut/imgui.git"
-        GIT_TAG "master"
+        GIT_TAG "docking"
         GIT_SHALLOW ON)
 
     FetchContent_GetProperties(imgui)
@@ -68,8 +69,8 @@ else()
 
         target_include_directories(imgui
             PUBLIC
-                imgui
-                imgui/backends
+                ${imgui_SOURCE_DIR}
+                ${imgui_SOURCE_DIR}/backends
             PRIVATE 
                 "${LABSLANG_DAWN_INSTALL_ROOT}/include"
                 "${WEBGPU_HEADER_LOCATION}"
@@ -94,12 +95,12 @@ else()
                 $<$<BOOL:${IMGUI_BACKEND_GLFW}>:glfw>
                 $<$<BOOL:${IMGUI_BACKEND_GLUT}>:glut>
                 $<$<BOOL:${IMGUI_BACKEND_METAL}>:"-framework Metal -framework MetalKit -framework QuartzCore">
-                $<$<BOOL:${IMGUI_BACKEND_OSX}>:"-framework Cocoa">
+                $<$<BOOL:${IMGUI_BACKEND_OSX}>:"-framework Cocoa"> 
                 $<$<OR:$<BOOL:${IMGUI_BACKEND_SDL}>,$<BOOL:${IMGUI_BACKEND_SDL_RENDERER}>>:SDL2::SDL2main>
                 $<$<OR:$<BOOL:${IMGUI_BACKEND_SDL}>,$<BOOL:${IMGUI_BACKEND_SDL_RENDERER}>>:$<IF:$<BOOL:${SDL_STATIC_ENABLED_BY_DEFAULT}>,SDL2::SDL2-static,SDL2::SDL2>>
                 $<$<BOOL:${IMGUI_BACKEND_VULKAN}>:Vulkan::Vulkan>
-                $<$<AND:$<BOOL:${IMGUI_BACKEND_OPENGL3}>,$<BOOL:${OpenGL_FOUND}>>:OpenGL::OpenGL>
-                $<$<AND:$<BOOL:${IMGUI_BACKEND_OPENGL2}>,$<BOOL:${OpenGL_FOUND}>>:OpenGL::OpenGL>
+                $<$<AND:$<BOOL:${IMGUI_BACKEND_OPENGL3}>,$<BOOL:${OpenGL_FOUND}>>:OpenGL::GL>
+                $<$<AND:$<BOOL:${IMGUI_BACKEND_OPENGL2}>,$<BOOL:${OpenGL_FOUND}>>:OpenGL::GL>
         )
 
         add_library(Dear::Imgui ALIAS imgui)

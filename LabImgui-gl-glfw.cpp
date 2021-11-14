@@ -1,19 +1,165 @@
 
+#include <GL/gl3w.h>
+
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_opengl3_loader.h"
 
-#include "LabImgui-gl-glfw.h"
+#include "LabImgui/LabImgui-gl-glfw.h"
 #include <GLFW/glfw3.h>
 
 #include <map>
 #include <string>
+#include <iostream>
 
 using std::map;
 using std::string;
 static map<string, GLFWwindow*> _windows;
+static GLFWwindow* _rootWindow = nullptr;
+
+static void error_callback(int error, const char* description)
+{
+    fprintf(stderr, "Error %d: %s\n", error, description);
+}
+
+extern "C"
+bool lab_imgui_init()
+{
+    if (_rootWindow)
+        return true;
+
+    glfwSetErrorCallback(error_callback);
+    if (!glfwInit()) {
+        fprintf(stderr, "Could not initialize glfw");
+        return false;
+    }
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+#if __APPLE__
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+
+    if (!_rootWindow) {
+        GLFWwindow* window = glfwCreateWindow(16, 16, "Root graphics context", NULL, NULL);
+        glfwMakeContextCurrent(window);
+        glfwSwapInterval(1); // must be set when a window's context is current
+        gl3wInit();
+
+        // get version info
+        const GLubyte* renderer = glGetString(GL_RENDERER); // get renderer string
+        const GLubyte* version = glGetString(GL_VERSION); // version as a string
+        const GLubyte* glsl_version = glGetString(GL_SHADING_LANGUAGE_VERSION);
+        std::cout << "OpenGL Renderer: " << renderer << std::endl;
+        std::cout << "OpenGL Version: " << version << std::endl;
+        std::cout << "GLSL Version: " << glsl_version << std::endl;
+        _rootWindow = window;
+    }
+
+    // leave the rootWindow bound.
+    glfwMakeContextCurrent(_rootWindow);
+    return _rootWindow != nullptr;
+}
+
+extern "C"
+bool lab_imgui_create_window(const char* window_name, int width, int height)
+{
+    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+
+    GLFWwindow* window = glfwCreateWindow(width, height, window_name, NULL, _rootWindow);
+    glfwMakeContextCurrent(window);
+
+    lab_imgui_init_window(window_name, window);
+    glfwMakeContextCurrent(_rootWindow);    // leave the root window bound
+    return true;
+}
+
+extern "C"
+bool lab_imgui_update(float timeout_seconds, bool auto_close)
+{
+    glfwWaitEventsTimeout(timeout_seconds);
+    int window_count = 0;
+    int close_count = 0;
+
+    for (auto w = _windows.begin(); w != _windows.end(); ++w) {
+        ++window_count;
+        if (glfwWindowShouldClose(w->second)) {
+            ++close_count;
+            if (auto_close) {
+                glfwDestroyWindow(w->second);
+                w = _windows.erase(w);
+                if (w == _windows.end())
+                    break;
+            }
+        }
+    }
+
+    if (window_count == close_count)
+        return false;
+
+    return true;
+}
+
+
+extern "C"
+void lab_imgui_render(const lab_WindowState*)
+{
+    /// @TODO support multiple windows, via window state, not via loop over all windows
+
+    glfwPollEvents();
+
+    // Rendering
+    ImGui::Render();
+
+    // note: ImGui multi-window is still not ready for primetime, this loop
+    // will have to change when ImGui multi-window really exists.
+    // right now, this is only valid because only one window will ever be created.
+    for (auto w = _windows.begin(); w != _windows.end(); ++w) {
+        int display_w, display_h;
+        glfwGetFramebufferSize(w->second, &display_w, &display_h);
+        glViewport(0, 0, display_w, display_h);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+}
+
+extern "C"
+void lab_imgui_present(const lab_WindowState*)
+{
+    /// @TODO support multiple windows, via window state, not via loop over all windows
+
+    for (auto w = _windows.begin(); w != _windows.end(); ++w) {
+        glfwSwapBuffers(w->second);
+    }
+}
+
+extern "C"
+void lab_imgui_window_state(const char* window_name, lab_WindowState * s)
+{
+    if (!s)
+        return;
+
+    s->width = 0;
+    s->height = 0;
+    s->valid = false;
+
+    auto i = _windows.find(window_name);
+    if (i == _windows.end())
+        return;
+
+    glfwGetWindowSize(i->second, &s->width, &s->height);
+    s->valid = (s->width > 0) && (s->height > 0);
+
+    if (s->valid)
+        glfwMakeContextCurrent(i->second);
+    else
+        glfwMakeContextCurrent(_rootWindow);    // leave the root window bound
+}
+
 
 extern "C"
 void lab_imgui_init_window(const char* window_name, GLFWwindow* window)
@@ -28,8 +174,7 @@ void lab_imgui_init_window(const char* window_name, GLFWwindow* window)
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init();
-
+    ImGui_ImplOpenGL3_Init("#version 430");
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
@@ -60,11 +205,18 @@ void lab_imgui_shutdown()
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    for (auto i : _windows)
+        glfwDestroyWindow(i.second);
+    glfwTerminate();
 }
 
 extern "C"
-void lab_imgui_new_docking_frame()
+void lab_imgui_new_docking_frame(const lab_WindowState* ws)
 {
+    if (!ws->valid /* || !ws->bound */)
+        return;
+
     // Start the ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -136,17 +288,23 @@ void lab_imgui_new_docking_frame()
 
 
 extern "C"
-lab_FullScreenMouseState lab_imgui_begin_fullscreen_docking(float window_width, float window_height)
+lab_FullScreenMouseState lab_imgui_begin_fullscreen_docking(const lab_WindowState* ws)
 {
+    if (!ws->valid /* || !ws->bound */)
+        return { false, false, false };
+
+    float w = (float)ws->width;
+    float h = (float)ws->height;
+
     ImGui::SetNextWindowPos({ 0, 0 });
-    ImGui::SetNextWindowSize({ (float)window_width, (float)window_height });
+    ImGui::SetNextWindowSize({ w, h });
     static bool begin_flag = false;
     ImGui::Begin("###FULLSCREEN", &begin_flag,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
     ImGui::SetCursorScreenPos(ImVec2{ 0, 0 });
-    ImGui::InvisibleButton("####FULL_SCREEN", { (float)window_width, (float)window_height });
+    ImGui::InvisibleButton("####FULL_SCREEN", { w, h });
 
     lab_FullScreenMouseState r = {
         ImGui::IsItemClicked(),
@@ -159,23 +317,8 @@ lab_FullScreenMouseState lab_imgui_begin_fullscreen_docking(float window_width, 
 }
 
 extern "C"
-void lab_imgui_end_fullscreen_docking()
+void lab_imgui_end_fullscreen_docking(const lab_WindowState* ws)
 {
+    /// @TODO support multiple windows
     ImGui::End(); // full screen window
-}
-
-extern "C"
-void lab_imgui_render(const char* window_name)
-{
-    // Rendering
-    ImGui::Render();
-
-    auto w = _windows.find(std::string(window_name));
-    if (w == _windows.end())
-        return;
-
-    int display_w, display_h;
-    glfwGetFramebufferSize(w->second, &display_w, &display_h);
-    glViewport(0, 0, display_w, display_h);
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }

@@ -1,9 +1,9 @@
 
-#include "FontManager.h"
+#include "LabImgui/FontManager.h"
 #include "imgui_impl_opengl3.h"
-#include "roboto_regular.ttf.h"
-#include "robotomono_regular.ttf.h"
-#include "meshula-icons.h"
+#include "LabImgui/roboto_regular.ttf.h"
+#include "LabImgui/robotomono_regular.ttf.h"
+#include "LabImgui/meshula-icons.h"
 #include <stdint.h>
 
 namespace lab {
