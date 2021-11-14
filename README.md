@@ -12,7 +12,7 @@ Tested on
 
 | Platform/SDK | GL    |
 | ------------ | ----- |
-| Windows      | [ x ] |
+| Windows      | :heavy_check_mark: |
 
 ```cpp
 #include <GL/gl3w.h>
