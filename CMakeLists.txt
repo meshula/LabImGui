@@ -35,7 +35,7 @@ add_library(LabImgui STATIC
 )
 set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
 target_link_libraries(LabImgui Dear::Imgui glfw)
-target_include_directories(LabImgui PUBLIC ${CMAKE_SOURCE_DIR} ${imgui_SOURCE_DIR} ${glfw_SOURCE_DIR})
+target_include_directories(LabImgui PUBLIC ${LABIMGUI_ROOT} ${imgui_SOURCE_DIR} ${glfw_SOURCE_DIR})
 add_library(Lab::Imgui ALIAS LabImgui)
 
 add_executable(LabImguiHello LabImguiHello.cpp)
@@ -44,4 +44,3 @@ set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 install(TARGETS LabImguiHello
     BUNDLE DESTINATION bin
     RUNTIME DESTINATION bin)
-
