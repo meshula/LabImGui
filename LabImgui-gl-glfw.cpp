@@ -18,6 +18,7 @@ using std::map;
 using std::string;
 static map<string, GLFWwindow*> _windows;
 static GLFWwindow* _rootWindow = nullptr;
+float highDPIscaleFactor = 1.0;
 
 static void error_callback(int error, const char* description)
 {
@@ -70,6 +71,21 @@ extern "C"
 bool lab_imgui_create_window(const char* window_name, int width, int height)
 {
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+
+#ifdef _WIN32
+    // if it's a HighDPI monitor, try to scale everything
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    float xscale, yscale;
+    glfwGetMonitorContentScale(monitor, &xscale, &yscale);
+    if (xscale > 1 || yscale > 1)
+    {
+        highDPIscaleFactor = xscale;
+        glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+    }
+#elif __APPLE__
+    // to prevent 1200x800 from becoming 2400x1600
+    glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
+#endif
 
     GLFWwindow* window = glfwCreateWindow(width, height, window_name, NULL, _rootWindow);
     glfwMakeContextCurrent(window);
@@ -196,6 +212,10 @@ void lab_imgui_init_window(const char* window_name, GLFWwindow* window)
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != NULL);
+
+    /// @TODO - WindowState should be in the map, and it should include the dpi scale factor
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.ScaleAllSizes(highDPIscaleFactor);
 }
 
 extern "C"
