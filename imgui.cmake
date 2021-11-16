@@ -72,9 +72,9 @@ else()
                 ${imgui_SOURCE_DIR}
                 ${imgui_SOURCE_DIR}/backends
             PRIVATE 
-                "${LABSLANG_DAWN_INSTALL_ROOT}/include"
-                "${WEBGPU_HEADER_LOCATION}"
-        )
+                $<$<BOOL:${IMGUI_BACKEND_DAWN}>:"${LABSLANG_DAWN_INSTALL_ROOT}/include">
+                $<$<BOOL:${IMGUI_BACKEND_WGPU}>:"${WEBGPU_HEADER_LOCATION}">
+            )
 
         if (APPLE)
             set_property(TARGET imgui APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
@@ -91,6 +91,8 @@ else()
         endif()
 
         target_link_libraries(imgui
+            PUBLIC
+                $<$<BOOL:${IMGUI_BACKEND_GLFW}>:glfw>
             PRIVATE
                 $<$<BOOL:${IMGUI_BACKEND_ANDROID}>:android>
                 $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_native>
@@ -102,7 +104,6 @@ else()
                 $<$<BOOL:${IMGUI_BACKEND_DX11}>:d3dcompiler.lib>
                 $<$<BOOL:${IMGUI_BACKEND_DX12}>:d3dcompiler.lib>
                 $<$<BOOL:${IMGUI_BACKEND_DX12}>:dxgi.lib>
-                $<$<BOOL:${IMGUI_BACKEND_GLFW}>:glfw>
                 $<$<BOOL:${IMGUI_BACKEND_GLUT}>:glut>
                 $<$<OR:$<BOOL:${IMGUI_BACKEND_SDL}>,$<BOOL:${IMGUI_BACKEND_SDL_RENDERER}>>:SDL2::SDL2main>
                 $<$<OR:$<BOOL:${IMGUI_BACKEND_SDL}>,$<BOOL:${IMGUI_BACKEND_SDL_RENDERER}>>:$<IF:$<BOOL:${SDL_STATIC_ENABLED_BY_DEFAULT}>,SDL2::SDL2-static,SDL2::SDL2>>

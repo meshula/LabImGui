@@ -4,24 +4,29 @@ set(LABIMGUI_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 cmake_policy(SET CMP0077 NEW)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-find_package(OpenGL REQUIRED)
-
-#if arget named glfw is not defined, fetch it and build it
-include(glfw.cmake)
-
 # configure Dear Imgui, once again, fetching it if necessary
 if(APPLE)
-    set(IMGUI_BACKEND_OSX ON)
+    set(IMGUI_BACKEND_GLFW ON)
+    set(IMGUI_BACKEND_OSX OFF)
     set(IMGUI_BACKEND_METAL OFF)
     set(IMGUI_BACKEND_OPENGL3 ON)
- elseif(WINDOWS)
+elseif(WINDOWS)
+    set(IMGUI_BACKEND_GLFW ON)
     set(IMGUI_BACKEND_OPENGL3 ON)
     set(IMGUI_BACKEND_WINAPI ON)
 endif()
-set(IMGUI_BACKEND_GLFW ON)
 set(IMGUI_BACKEND_WGPU OFF)
 set(IMGUI_BACKEND_DAWN OFF)
 set(WEBGPU_HEADER_LOCATION "${CMAKE_INSTALL_PREFIX}/include")
+
+if (IMGUI_BACKEND_OPENGL3)
+    find_package(OpenGL REQUIRED)
+endif()
+
+if (IMGUI_BACKEND_GLFW)
+    include(glfw.cmake)
+endif()
+
 include(imgui.cmake)
 
 if (IMGUI_BACKEND_OPENGL3)
@@ -29,6 +34,11 @@ if (IMGUI_BACKEND_OPENGL3)
         LabImGui-gl-glfw.cpp
         GL/gl3w.c
         LabImgui/LabImgui-gl-glfw.h)
+endif()
+if (IMGUI_BACKEND_METAL)
+    set(PLATFORM_SRC
+        LabImGui-metal-cocoa.cpp
+        LabImgui/LabImgui-metal-cocoa.cpp)
 endif()
 
 add_library(LabImgui STATIC
@@ -43,12 +53,12 @@ add_library(LabImgui STATIC
     ${PLATFORM_SRC}
 )
 set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
-target_link_libraries(LabImgui Dear::Imgui glfw)
-target_include_directories(LabImgui PUBLIC ${LABIMGUI_ROOT} ${imgui_SOURCE_DIR} ${glfw_SOURCE_DIR})
+target_link_libraries(LabImgui Dear::Imgui)
+target_include_directories(LabImgui PUBLIC ${LABIMGUI_ROOT} ${imgui_SOURCE_DIR})
 add_library(Lab::Imgui ALIAS LabImgui)
 
 add_executable(LabImguiHello LabImguiHello.cpp)
-target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui glfw ${LABIMGUI_RENDER_SYSTEM})
+target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui ${LABIMGUI_RENDER_SYSTEM})
 set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 install(TARGETS LabImguiHello
     BUNDLE DESTINATION bin
