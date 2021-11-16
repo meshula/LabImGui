@@ -7,7 +7,7 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_opengl3_loader.h"
 
-#include "LabImgui/LabImgui-gl-glfw.h"
+#include "LabImgui/LabImGui-gl-glfw.h"
 #include <GLFW/glfw3.h>
 
 #include <map>
@@ -38,7 +38,7 @@ bool lab_imgui_init()
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1); // 4.1 is mac on Mac
 #if __APPLE__
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -190,7 +190,7 @@ void lab_imgui_init_window(const char* window_name, GLFWwindow* window)
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 430");
+    ImGui_ImplOpenGL3_Init("#version 410");
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 

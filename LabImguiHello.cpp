@@ -8,7 +8,7 @@
 #include <exception>
 #include <iostream>
 
-int main(char** argc, int argv) try
+int main(int argv, char** argc) try
 {
     lab_imgui_init();
     lab_imgui_create_window("Hello LabImgui", 1024, 768);
@@ -19,6 +19,12 @@ int main(char** argc, int argv) try
         lab_imgui_window_state("Hello LabImgui", &ws);
         if (!ws.valid)
             break;
+
+        //------------ draw to the frame buffer
+        
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
+
+        //------------ start the Dear ImGui portion
 
         lab_imgui_new_docking_frame(&ws);
         lab_imgui_begin_fullscreen_docking(&ws);

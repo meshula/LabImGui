@@ -76,6 +76,16 @@ else()
                 "${WEBGPU_HEADER_LOCATION}"
         )
 
+        if (APPLE)
+            set_property(TARGET imgui APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
+            target_link_libraries(imgui PRIVATE
+                "-framework Metal"
+                "-framework MetalKit"
+                "-framework QuartzCore"
+                "-framework Cocoa"
+            )
+        endif()
+
         if (IMGUI_BACKEND_DAWN)
             add_dependencies(imgui webgpu_header)
         endif()
@@ -94,8 +104,6 @@ else()
                 $<$<BOOL:${IMGUI_BACKEND_DX12}>:dxgi.lib>
                 $<$<BOOL:${IMGUI_BACKEND_GLFW}>:glfw>
                 $<$<BOOL:${IMGUI_BACKEND_GLUT}>:glut>
-                $<$<BOOL:${IMGUI_BACKEND_METAL}>:"-framework Metal -framework MetalKit -framework QuartzCore">
-                $<$<BOOL:${IMGUI_BACKEND_OSX}>:"-framework Cocoa"> 
                 $<$<OR:$<BOOL:${IMGUI_BACKEND_SDL}>,$<BOOL:${IMGUI_BACKEND_SDL_RENDERER}>>:SDL2::SDL2main>
                 $<$<OR:$<BOOL:${IMGUI_BACKEND_SDL}>,$<BOOL:${IMGUI_BACKEND_SDL_RENDERER}>>:$<IF:$<BOOL:${SDL_STATIC_ENABLED_BY_DEFAULT}>,SDL2::SDL2-static,SDL2::SDL2>>
                 $<$<BOOL:${IMGUI_BACKEND_VULKAN}>:Vulkan::Vulkan>

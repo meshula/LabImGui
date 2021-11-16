@@ -10,28 +10,37 @@ find_package(OpenGL REQUIRED)
 include(glfw.cmake)
 
 # configure Dear Imgui, once again, fetching it if necessary
-set(IMGUI_BACKEND_WGPU OFF)
-set(IMGUI_BACKEND_OPENGL3 ON)
+if(APPLE)
+    set(IMGUI_BACKEND_OSX ON)
+    set(IMGUI_BACKEND_METAL OFF)
+    set(IMGUI_BACKEND_OPENGL3 ON)
+ elseif(WINDOWS)
+    set(IMGUI_BACKEND_OPENGL3 ON)
+    set(IMGUI_BACKEND_WINAPI ON)
+endif()
 set(IMGUI_BACKEND_GLFW ON)
+set(IMGUI_BACKEND_WGPU OFF)
 set(IMGUI_BACKEND_DAWN OFF)
-set(IMGUI_BACKEND_WINAPI ON)
-set(IMGUI_BACKEND_OSX OFF)
-set(IMGUI_BACKEND_METAL OFF)
 set(WEBGPU_HEADER_LOCATION "${CMAKE_INSTALL_PREFIX}/include")
 include(imgui.cmake)
 
+if (IMGUI_BACKEND_OPENGL3)
+    set(PLATFORM_SRC
+        LabImGui-gl-glfw.cpp
+        GL/gl3w.c
+        LabImgui/LabImgui-gl-glfw.h)
+endif()
+
 add_library(LabImgui STATIC
-    LabImGui-gl-glfw.cpp
     Widgets.cpp
     fontmanager.cpp
-    GL/gl3w.c
     LabImgui/FontManager.h
-    LabImgui/LabImgui-gl-glfw.h
     LabImgui/Widgets.h
     LabImgui/materialIconDefinitions.h
     LabImgui/meshula-icons.h
     LabImgui/roboto_regular.ttf.h
     LabImgui/robotomono_regular.ttf.h
+    ${PLATFORM_SRC}
 )
 set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
 target_link_libraries(LabImgui Dear::Imgui glfw)
@@ -44,3 +53,4 @@ set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 install(TARGETS LabImguiHello
     BUNDLE DESTINATION bin
     RUNTIME DESTINATION bin)
+
