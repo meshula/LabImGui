@@ -19,6 +19,9 @@ using std::string;
 static map<string, GLFWwindow*> _windows;
 static GLFWwindow* _rootWindow = nullptr;
 float highDPIscaleFactor = 1.0;
+static uint64_t last_time = 0;
+static bool show_test_window = true;
+static bool show_another_window = false;
 
 static void error_callback(int error, const char* description)
 {
@@ -67,9 +70,18 @@ bool lab_imgui_init()
     return _rootWindow != nullptr;
 }
 
+static void (*frame_cb)(void) = nullptr;
+static float clear_color[4] = { 0,0,0,1 };
+
 extern "C"
-bool lab_imgui_create_window(const char* window_name, int width, int height)
+void lab_imgui_init_window(const char* window_name, GLFWwindow* window);
+
+extern "C"
+bool lab_imgui_create_window(const char* window_name, int width, int height,
+    void (*custom_frame)(void))
 {
+    frame_cb = custom_frame;
+
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 
 #ifdef _WIN32
@@ -89,9 +101,54 @@ bool lab_imgui_create_window(const char* window_name, int width, int height)
 
     GLFWwindow* window = glfwCreateWindow(width, height, window_name, NULL, _rootWindow);
     glfwMakeContextCurrent(window);
-
     lab_imgui_init_window(window_name, window);
-    glfwMakeContextCurrent(_rootWindow);    // leave the root window bound
+    //glfwMakeContextCurrent(_rootWindow);    // leave the root window bound
+
+    while (lab_imgui_update(1.f / 60.f, true)) {
+        lab_WindowState ws;
+        lab_imgui_window_state("Hello LabImGui", &ws);
+        if (!ws.valid)
+            return true;
+
+        glfwMakeContextCurrent(window);
+
+        glClearColor(1, 0, 0, 1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+        if (frame_cb)
+            frame_cb();
+        else {
+            // 1. Show a simple window
+            // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appears in a window automatically called "Debug"
+            static float f = 0.0f;
+            ImGui::Text("Hello, world!");
+            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+            ImGui::ColorEdit3("clear color", clear_color);
+            if (ImGui::Button("Test Window"))
+                show_test_window ^= 1;
+            if (ImGui::Button("Another Window"))
+                show_another_window ^= 1;
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+            // 2. Show another simple window, this time using an explicit Begin/End pair
+            if (show_another_window)
+            {
+                ImGui::SetNextWindowSize(ImVec2(200, 100), ImGuiCond_FirstUseEver);
+                ImGui::Begin("Another Window", &show_another_window);
+                ImGui::Text("Hello");
+                ImGui::End();
+            }
+
+            // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowDemoWindow()
+            if (show_test_window)
+            {
+                ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiCond_FirstUseEver);
+                ImGui::ShowDemoWindow();
+            }
+        }
+        lab_imgui_render(&ws);
+        lab_imgui_present(&ws);
+    }
     return true;
 }
 
@@ -169,11 +226,6 @@ void lab_imgui_window_state(const char* window_name, lab_WindowState * s)
 
     glfwGetWindowSize(i->second, &s->width, &s->height);
     s->valid = (s->width > 0) && (s->height > 0);
-
-    if (s->valid)
-        glfwMakeContextCurrent(i->second);
-    else
-        glfwMakeContextCurrent(_rootWindow);    // leave the root window bound
 }
 
 

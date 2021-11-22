@@ -1,7 +1,6 @@
 
 //#include <GL/gl3w.h>
-//#include "LabImgui/LabImGui-gl-glfw.h"
-#include "LabImgui/LabImGui-sokol.h"
+#include "LabImgui/LabImGui.h"
 
 #include "imgui.h"
 
@@ -11,13 +10,13 @@
 void frame()
 {
     lab_WindowState ws;
-    lab_imgui_window_state("Hello LabImgui", &ws);
+    lab_imgui_window_state("Hello LabImGui", &ws);
     if (!ws.valid)
         return;
 
     //------------ draw to the frame buffer
-    
-//        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
+
+    // custom stuff
 
     //------------ start the Dear ImGui portion
 
@@ -34,19 +33,12 @@ void frame()
     //------------ custom end
 
     lab_imgui_end_fullscreen_docking(&ws);
-
-    // render the user interface
-    lab_imgui_render(&ws);
-
-    // present swaps the frame buffer to be visible
-    // so all frame rendering must be complete before the present call
-    lab_imgui_present(&ws);
 }
 
 int main(int argv, char** argc) try
 {
     lab_imgui_init();
-    lab_imgui_create_window("Hello LabImgui", 1024, 768, frame);
+    lab_imgui_create_window("Hello LabImGui", 1024, 768, frame);
     lab_imgui_shutdown();
     return 0;
 }
