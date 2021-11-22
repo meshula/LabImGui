@@ -6,34 +6,42 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # configure Dear Imgui, once again, fetching it if necessary
 if(APPLE)
-    set(IMGUI_BACKEND_GLFW ON)
-    set(IMGUI_BACKEND_OSX OFF)
-    set(IMGUI_BACKEND_METAL OFF)
-    set(IMGUI_BACKEND_OPENGL3 ON)
-elseif(WINDOWS)
-    set(IMGUI_BACKEND_GLFW ON)
-    set(IMGUI_BACKEND_OPENGL3 ON)
-    set(IMGUI_BACKEND_WINAPI ON)
+    option(IMGUI_BACKEND_OSX "Native Mac backed" ON)
+    option(IMGUI_BACKEND_METAL "Metal renderer" OFF)
+    option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" ON)
+    option(IMGUI_BACKEND_GLFW "GLFW backend" ON)
+elseif(WIN32)
+    option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" ON)
+    option(IMGUI_BACKEND_SOKOL "Sokol backend" OFF)
+    option(IMGUI_BACKEND_GLFW "GLFW backend" ON)
+    option(IMGUI_BACKEND_WINAPI "Windows native interfaces" ON) 
 endif()
-set(IMGUI_BACKEND_WGPU OFF)
-set(IMGUI_BACKEND_DAWN OFF)
+
+option(IMGUI_BACKEND_WGPU "Use wgpu API backend" OFF)
+option(IMGUI_BACKEND_DAWN "Use Dawn renderer backend" OFF)
 set(WEBGPU_HEADER_LOCATION "${CMAKE_INSTALL_PREFIX}/include")
 
 if (IMGUI_BACKEND_OPENGL3)
     find_package(OpenGL REQUIRED)
 endif()
-
 if (IMGUI_BACKEND_GLFW)
     include(glfw.cmake)
 endif()
 
 include(imgui.cmake)
 
-if (IMGUI_BACKEND_OPENGL3)
+if (IMGUI_BACKEND_SOKOL)
+    include(sokol.cmake)
+    set(BACKEND_LIB sokol::sokol)
+    set(PLATFORM_SRC
+        LabImGui-sokol.cpp)
+endif()
+
+if (IMGUI_BACKEND_OPENGL3 AND IMGUI_BACKEND_GLFW)
     set(PLATFORM_SRC
         LabImGui-gl-glfw.cpp
-        GL/gl3w.c
-        LabImgui/LabImgui-gl-glfw.h)
+        GL/gl3w.c)
+    set(BACKEND_LIB glfw)
 endif()
 if (IMGUI_BACKEND_METAL)
     set(PLATFORM_SRC
@@ -44,6 +52,7 @@ endif()
 add_library(LabImgui STATIC
     Widgets.cpp
     fontmanager.cpp
+    LabImGui/LabImGui.h
     LabImgui/FontManager.h
     LabImgui/Widgets.h
     LabImgui/materialIconDefinitions.h
@@ -53,12 +62,13 @@ add_library(LabImgui STATIC
     ${PLATFORM_SRC}
 )
 set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
-target_link_libraries(LabImgui Dear::Imgui)
-target_include_directories(LabImgui PUBLIC ${LABIMGUI_ROOT} ${imgui_SOURCE_DIR})
+
+target_link_libraries(LabImgui Dear::Imgui ${BACKEND_LIB})
+target_include_directories(LabImgui PUBLIC ${LABIMGUI_ROOT} ${imgui_SOURCE_DIR} ${glfw_SOURCE_DIR})
 add_library(Lab::Imgui ALIAS LabImgui)
 
 add_executable(LabImguiHello LabImguiHello.cpp)
-target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui ${LABIMGUI_RENDER_SYSTEM})
+target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM})
 set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 install(TARGETS LabImguiHello
     BUNDLE DESTINATION bin

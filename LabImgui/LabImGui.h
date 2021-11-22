@@ -1,13 +1,12 @@
 
-#ifndef LABIMGUI_GL_GLFW_H
-#define LABIMGUI_GL_GLFW_H
+#ifndef LABIMGUI_SOKOL_H
+#define LABIMGUI_SOKOL_H
 
 #ifdef __cplusplus
 #  define LABIMGUI_API extern "C"
 #else
 #  define LABIMGUI_API
 #endif
-
 
 typedef struct
 {
@@ -20,8 +19,6 @@ typedef struct
     bool valid;
 } lab_WindowState;
 
-struct GLFWwindow;
-
 // this must be called before OpenGL is invoked, otherwise
 // on Windows, only GL 1.1 will be available.
 LABIMGUI_API
@@ -29,11 +26,8 @@ bool lab_imgui_init();
 
 // create a glfw Imgui window and initialize the Imgui context
 LABIMGUI_API
-bool lab_imgui_create_window(const char* window_name, int window_width, int window_height);
-
-// initialize an Imgui context, given an existing GLFWwindow
-LABIMGUI_API
-void lab_imgui_init_window(const char* window_name, GLFWwindow * window);
+bool lab_imgui_create_window(const char* window_name, int width, int height,
+    void (*custom_frame)(void));
 
 LABIMGUI_API
 void lab_imgui_window_state(const char* window_name, lab_WindowState * s);
