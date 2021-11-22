@@ -16,7 +16,7 @@ else()
         GIT_SHALLOW ON)
 
     FetchContent_GetProperties(imgui)
-    if(NOT imgui_POPULATED)
+    if (NOT imgui_POPULATED)
         FetchContent_Populate(imgui)
 
         option(IMGUI_BACKEND_ALLEGRO5 "Allegro Gaming Library")
@@ -77,13 +77,18 @@ else()
         )
 
         if (APPLE)
+            if(CMAKE_OSX_SYSROOT MATCHES ".*iphoneos.*")
+                target_link_libraries(imgui PUBLIC
+                    "-framework Metal"
+                    "-framework MetalKit")
+            else()
+                target_link_libraries(imgui PUBLIC
+                    "-framework Metal"
+                    "-framework MetalKit"
+                    "-framework QuartzCore"
+                    "-framework Cocoa")
+            endif()
             set_property(TARGET imgui APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
-            target_link_libraries(imgui PRIVATE
-                "-framework Metal"
-                "-framework MetalKit"
-                "-framework QuartzCore"
-                "-framework Cocoa"
-            )
         endif()
 
         if (IMGUI_BACKEND_DAWN)

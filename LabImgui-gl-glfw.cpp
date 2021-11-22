@@ -7,7 +7,7 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_opengl3_loader.h"
 
-#include "LabImgui/LabImGui-gl-glfw.h"
+#include "LabImgui/LabImGui.h"
 #include <GLFW/glfw3.h>
 
 #include <map>

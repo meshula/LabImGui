@@ -10,10 +10,11 @@ window support on this project is not implemented.
 
 Tested on
 
-| Platform/SDK | GL |
-| ------------ | -- |
-| Windows      | :heavy_check_mark: |
-| Mac          | :heavy_check_mark: |
+| Platform/SDK | GL                 | Sokol                 | Metal           |
+| ------------ | ------------------ | --------------------- | --------------- |
+| Windows      | :heavy_check_mark: | :heavy_check_mark: GL | :jack_o_latern: |
+| Mac          | :heavy_check_mark: | :construction: Metal  | :construction:  |
+| iOS          | :jack_o_lantern:   | :construction: Metal  | :construction:  |
 
 ```cpp
 #include <GL/gl3w.h>
