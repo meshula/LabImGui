@@ -6,23 +6,23 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # configure Dear Imgui, once again, fetching it if necessary
 if(APPLE)
-    set(IMGUI_BACKEND_OSX ON)
-    set(IMGUI_BACKEND_METAL OFF)
-    set(IMGUI_BACKEND_OPENGL3 ON)
-    set(IMGUI_BACKEND_GLFW ON)
+    option(IMGUI_BACKEND_OSX "Native Mac backed" ON)
+    option(IMGUI_BACKEND_METAL "Metal renderer" OFF)
+    option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" ON)
+    option(IMGUI_BACKEND_GLFW "GLFW backend" ON)
 elseif(WIN32)
-    set(IMGUI_BACKEND_OPENGL3 ON)
-    set(IMGUI_BACKEND_SOKOL OFF)
-    set(IMGUI_BACKEND_GLFW ON)
-    set(IMGUI_BACKEND_WINAPI ON) 
+    option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" ON)
+    option(IMGUI_BACKEND_SOKOL "Sokol backend" OFF)
+    option(IMGUI_BACKEND_GLFW "GLFW backend" ON)
+    option(IMGUI_BACKEND_WINAPI "Windows native interfaces" ON) 
 endif()
 
 if (IMGUI_BACKEND_OPENGL3)
     find_package(OpenGL REQUIRED)
 endif()
 
-set(IMGUI_BACKEND_WGPU OFF)
-set(IMGUI_BACKEND_DAWN OFF)
+option(IMGUI_BACKEND_WGPU "Use wgpu API backend" OFF)
+option(IMGUI_BACKEND_DAWN "Use Dawn renderer backend" OFF)
 set(WEBGPU_HEADER_LOCATION "${CMAKE_INSTALL_PREFIX}/include")
 include(imgui.cmake)
 
@@ -34,21 +34,20 @@ if (IMGUI_BACKEND_SOKOL)
     include(sokol.cmake)
     set(BACKEND_LIB sokol::sokol)
     set(PLATFORM_SRC
-        LabImGui-sokol.cpp
-        LabImgui/LabImGui-sokol.h)
+        LabImGui-sokol.cpp)
 endif()
 
 if (IMGUI_BACKEND_OPENGL3 AND IMGUI_BACKEND_GLFW)
     set(PLATFORM_SRC
         LabImGui-gl-glfw.cpp
-        GL/gl3w.c
-        LabImgui/LabImGui-gl-glfw.h)
+        GL/gl3w.c)
     set(BACKEND_LIB glfw)
 endif()
 
 add_library(LabImgui STATIC
     Widgets.cpp
     fontmanager.cpp
+    LabImGui/LabImGui.h
     LabImgui/FontManager.h
     LabImgui/Widgets.h
     LabImgui/materialIconDefinitions.h

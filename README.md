@@ -12,7 +12,7 @@ Tested on
 
 | Platform/SDK | GL                 | Sokol                 | Metal           |
 | ------------ | ------------------ | --------------------- | --------------- |
-| Windows      | :heavy_check_mark: | :heavy_check_mark: GL | :jack_o_latern: |
+| Windows      | :heavy_check_mark: | :heavy_check_mark: GL | :jack_o_lantern: |
 | Mac          | :heavy_check_mark: | :construction: Metal  | :construction:  |
 | iOS          | :jack_o_lantern:   | :construction: Metal  | :construction:  |
 
