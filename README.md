@@ -15,6 +15,7 @@ Tested on
 | Windows      | :white_check_mark: GL | :white_check_mark: GL | :jack_o_lantern:   |
 | Mac          | :white_check_mark: GL | :construction: Metal  | :white_check_mark: |
 | iOS          | :jack_o_lantern:      | :construction: Metal  | :construction:     |
+| Linux        | :hourglass:           | :hourglass:           | :jack_o_lantern:   |
 
 ```cpp
 #include "LabImgui/LabImGui.h"
