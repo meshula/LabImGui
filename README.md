@@ -12,8 +12,8 @@ Tested on
 
 | Platform/SDK | GLFW                  | Sokol                 | Metal              |
 | ------------ | --------------------- | --------------------- | ------------------ |
-| Windows      | :heavy_check_mark: GL | :heavy_check_mark: GL | :jack_o_lantern:   |
-| Mac          | :heavy_check_mark: GL | :construction: Metal  | :heavy_check_mark: |
+| Windows      | :white_check_mark: GL | :white_check_mark: GL | :jack_o_lantern:   |
+| Mac          | :white_check_mark: GL | :construction: Metal  | :white_check_mark: |
 | iOS          | :jack_o_lantern:      | :construction: Metal  | :construction:     |
 
 ```cpp
