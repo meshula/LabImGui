@@ -7,9 +7,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # configure Dear Imgui, once again, fetching it if necessary
 if(APPLE)
     option(IMGUI_BACKEND_OSX "Native Mac backed" ON)
-    option(IMGUI_BACKEND_METAL "Metal renderer" OFF)
-    option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" ON)
-    option(IMGUI_BACKEND_GLFW "GLFW backend" ON)
+    option(IMGUI_BACKEND_METAL "Metal renderer" ON)
+    option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" OFF)
+    option(IMGUI_BACKEND_GLFW "GLFW backend" OFF)
 elseif(WIN32)
     option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" ON)
     option(IMGUI_BACKEND_SOKOL "Sokol backend" OFF)
@@ -45,8 +45,8 @@ if (IMGUI_BACKEND_OPENGL3 AND IMGUI_BACKEND_GLFW)
 endif()
 if (IMGUI_BACKEND_METAL)
     set(PLATFORM_SRC
-        LabImGui-metal-cocoa.cpp
-        LabImgui/LabImgui-metal-cocoa.cpp)
+        LabImGui-metal-cocoa.mm
+        LabImgui/LabImgui-metal-cocoa.h)
 endif()
 
 add_library(LabImgui STATIC
@@ -65,6 +65,11 @@ set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
 
 target_link_libraries(LabImgui Dear::Imgui ${BACKEND_LIB})
 target_include_directories(LabImgui PUBLIC ${LABIMGUI_ROOT} ${imgui_SOURCE_DIR} ${glfw_SOURCE_DIR})
+
+if (APPLE)
+    set_property(TARGET LabImgui APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
+endif()
+
 add_library(Lab::Imgui ALIAS LabImgui)
 
 add_executable(LabImguiHello LabImguiHello.cpp)

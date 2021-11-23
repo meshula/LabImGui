@@ -10,11 +10,11 @@ window support on this project is not implemented.
 
 Tested on
 
-| Platform/SDK | GL                 | Sokol                 | Metal           |
-| ------------ | ------------------ | --------------------- | --------------- |
-| Windows      | :heavy_check_mark: | :heavy_check_mark: GL | :jack_o_lantern: |
-| Mac          | :heavy_check_mark: | :construction: Metal  | :construction:  |
-| iOS          | :jack_o_lantern:   | :construction: Metal  | :construction:  |
+| Platform/SDK | GLFW                  | Sokol                 | Metal              |
+| ------------ | --------------------- | --------------------- | ------------------ |
+| Windows      | :heavy_check_mark: GL | :heavy_check_mark: GL | :jack_o_lantern:   |
+| Mac          | :heavy_check_mark: GL | :construction: Metal  | :heavy_check_mark: |
+| iOS          | :jack_o_lantern:      | :construction: Metal  | :construction:     |
 
 ```cpp
 #include "LabImgui/LabImGui.h"
