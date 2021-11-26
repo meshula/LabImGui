@@ -112,7 +112,7 @@ bool lab_imgui_create_window(const char* window_name, int width, int height,
 
         glfwMakeContextCurrent(window);
 
-        glClearColor(1, 0, 0, 1);
+        glClearColor(0.25f, 0.25f, 0.25f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         if (frame_cb)
@@ -180,7 +180,7 @@ bool lab_imgui_update(float timeout_seconds, bool auto_close)
 
 
 extern "C"
-void lab_imgui_render(const lab_WindowState*)
+void lab_imgui_render(const lab_WindowState* ws)
 {
     /// @TODO support multiple windows, via window state, not via loop over all windows
 
@@ -188,6 +188,13 @@ void lab_imgui_render(const lab_WindowState*)
 
     // Rendering
     ImGui::Render();
+
+    if (ws)
+    {
+        glViewport(0, 0, ws->fb_width, ws->fb_height);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        return;
+    }
 
     // note: ImGui multi-window is still not ready for primetime, this loop
     // will have to change when ImGui multi-window really exists.
@@ -225,6 +232,7 @@ void lab_imgui_window_state(const char* window_name, lab_WindowState * s)
         return;
 
     glfwGetWindowSize(i->second, &s->width, &s->height);
+    glfwGetFramebufferSize(i->second, &s->fb_height, &s->fb_height);
     s->valid = (s->width > 0) && (s->height > 0);
 }
 

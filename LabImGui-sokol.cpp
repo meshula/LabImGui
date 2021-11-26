@@ -44,6 +44,8 @@ void lab_imgui_window_state(const char* window_name, lab_WindowState * s)
 
     s->width = sapp_width();
     s->height = sapp_height();
+    s->fb_width = sapp_width();     // @TODO handle retina
+    s->fb_height = sapp_height();   // @TODO handle retina
     s->valid = s->width > 0 && s->height > 0;
 }
 

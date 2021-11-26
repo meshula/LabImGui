@@ -30,6 +30,10 @@ void frame()
     ImGui::Button("hi!");
     ImGui::End();
 
+    ImGui::Begin("Another Window");
+    ImGui::Button("hi!###1");
+    ImGui::End();
+
     //------------ custom end
 
     lab_imgui_end_fullscreen_docking(&ws);

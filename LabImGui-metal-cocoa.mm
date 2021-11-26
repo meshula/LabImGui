@@ -391,6 +391,8 @@ void lab_imgui_window_state(const char* window_name, lab_WindowState * s)
 
     s->width = 1200;
     s->height = 700;
+    s->fb_width = 1200;
+    s->fb_height = 700;
     s->valid = true;
 }
 

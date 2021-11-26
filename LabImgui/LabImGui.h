@@ -16,6 +16,7 @@ typedef struct
 typedef struct
 {
     int width, height;
+    int fb_width, fb_height;
     bool valid;
 } lab_WindowState;
 
