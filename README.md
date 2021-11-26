@@ -8,14 +8,31 @@ It's the minimal amount of visible API to pull it off.
 Note that until Dear ImGui supports multiple windows on Linux, the multiple
 window support on this project is not implemented.
 
-Tested on
+Windows | GL                 | WebGPU/native |
+------- | ------------------ | ------------- |
+GLFW    | :white_check_mark: | :hourglass:   |
+Sokol   | :white_check_mark: | :hourglass:   |
 
-| Platform/SDK | GLFW                  | Sokol                 | Metal              |
-| ------------ | --------------------- | --------------------- | ------------------ |
-| Windows      | :white_check_mark: GL | :white_check_mark: GL | :jack_o_lantern:   |
-| Mac          | :white_check_mark: GL | :construction: Metal  | :white_check_mark: |
-| iOS          | :jack_o_lantern:      | :construction: Metal  | :construction:     |
-| Linux        | :hourglass:           | :hourglass:           | :jack_o_lantern:   |
+Mac     | GL                 | Metal              | WebGPU/native    |
+------- | ------------------ + ------------------ | ---------------- |
+GLFW    | :white_check_mark: | :hourglass:        | :jack_o_lantern: |
+Sokol   | :white_check_mark: | :white_check_mark: | :jack_o_lantern: |
+Cocoa   | :jack_o_lantern:   | :white_check_marK: | :hourglass:      |
+
+iOS     | Metal              | WebGPU/native    |
+------- | ------------------ | ---------------- |
+Sokol   | :hourglass:        | :jack_o_lantern: |
+Cocoa   | :construction:     | :hourglass:      |
+
+WASM    | WebGPU             |
+------- | ------------------ |
+Sokol   | :hourglass:        |
+
+Linux   | GL                 | Vulkan           |
+------- | ------------------ | ---------------- |
+GLFW    | :construction:     | :hourglass:      |
+Sokol   | :construction:     | :jack_o_lantern: |
+
 
 ```cpp
 #include "LabImgui/LabImGui.h"
