@@ -14,7 +14,7 @@ GLFW    | :white_check_mark: | :hourglass:   |
 Sokol   | :white_check_mark: | :hourglass:   |
 
 Mac     | GL                 | Metal              | WebGPU/native    |
-------- | ------------------ + ------------------ | ---------------- |
+------- | ------------------ | ------------------ | ---------------- |
 GLFW    | :white_check_mark: | :hourglass:        | :jack_o_lantern: |
 Sokol   | :white_check_mark: | :white_check_mark: | :jack_o_lantern: |
 Cocoa   | :jack_o_lantern:   | :white_check_marK: | :hourglass:      |
