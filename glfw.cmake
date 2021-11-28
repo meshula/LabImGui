@@ -18,7 +18,7 @@ else()
         set(GLFW_BUILD_EXAMPLES OFF CACHE INTERNAL "glfw examples")
         set(GLFW_BUILD_TESTS OFF CACHE INTERNAL "glfw tests")
         set(GLFW_BUILD_DOCS OFF CACHE INTERNAL "glfw docs")
-        set(GLFW_INSTALL OFF CACHE INTERNAL "glfw install")
+        set(GLFW_INSTALL ON CACHE INTERNAL "glfw install")
         set(GLFW_VULKAN_STATIC OFF CACHE INTERNAL "glfw vulkan") # "Assume the Vulkan loader is linked with the application"
         add_subdirectory(${glfw_SOURCE_DIR} ${glfw_BINARY_DIR})
     endif()

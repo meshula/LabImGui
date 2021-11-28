@@ -49,9 +49,7 @@ if (IMGUI_BACKEND_METAL)
         LabImgui/LabImgui-metal-cocoa.h)
 endif()
 
-add_library(LabImgui STATIC
-    Widgets.cpp
-    fontmanager.cpp
+set(LABIMGUI_PUBLIC_H
     LabImGui/LabImGui.h
     LabImgui/FontManager.h
     LabImgui/Widgets.h
@@ -59,12 +57,27 @@ add_library(LabImgui STATIC
     LabImgui/meshula-icons.h
     LabImgui/roboto_regular.ttf.h
     LabImgui/robotomono_regular.ttf.h
+)
+
+add_library(LabImgui STATIC
+    Widgets.cpp
+    fontmanager.cpp
+    ${LABIMGUI_PUBLIC_H}
     ${PLATFORM_SRC}
 )
 set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
 
 target_link_libraries(LabImgui Dear::Imgui ${BACKEND_LIB})
 target_include_directories(LabImgui PUBLIC ${LABIMGUI_ROOT} ${imgui_SOURCE_DIR} ${glfw_SOURCE_DIR})
+
+install(TARGETS LabImgui
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    FRAMEWORK DESTINATION lib
+    BUNDLE DESTINATION bin
+    RUNTIME DESTINATION bin)
+
+install(FILES ${LABIMGUI_PUBLIC_H} DESTINATION include/LabImGui)
 
 if (APPLE)
     set_property(TARGET LabImgui APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
