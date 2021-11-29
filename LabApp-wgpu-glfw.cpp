@@ -7,19 +7,76 @@
 
 #include "LabImgui/LabImGui.h"
 #include <GLFW/glfw3.h>
+#include <dawn/dawn_proc.h>
+#include <dawn/webgpu_cpp.h>
+#include <dawn_native/DawnNative.h>
+#include <webgpu/webgpu.h>
+
+#if defined(_WIN32)
+#    define GLFW_EXPOSE_NATIVE_WIN32
+#elif defined(DAWN_USE_X11)
+#    define GLFW_EXPOSE_NATIVE_X11
+#endif
+#include <GLFW/glfw3native.h>
+
+#ifdef max
+#undef max
+#undef min
+#endif
 
 #include <map>
+#include <memory>
 #include <string>
 #include <iostream>
+#include <unordered_map>
 
 using std::map;
 using std::string;
-static map<string, GLFWwindow*> _windows;
-static GLFWwindow* _rootWindow = nullptr;
 float highDPIscaleFactor = 1.0;
 static uint64_t last_time = 0;
 static bool show_test_window = true;
 static bool show_another_window = false;
+static wgpu::BackendType _backendType = wgpu::BackendType::Null;
+
+static dawn_native::Adapter chosenAdapter;
+static std::unique_ptr<dawn_native::Instance> instance;
+static wgpu::Device device;
+static wgpu::Queue queue;
+
+
+bool IsSameDescriptor(const wgpu::SwapChainDescriptor& a, const wgpu::SwapChainDescriptor& b) {
+    return a.usage == b.usage && a.format == b.format && a.width == b.width &&
+        a.height == b.height && a.presentMode == b.presentMode;
+}
+
+struct WindowData {
+    std::string name;
+    GLFWwindow* window = nullptr;
+    uint64_t serial = 0;
+
+    float clearCycle = 1.0f;
+    bool latched = false;
+    bool renderTriangle = true;
+    uint32_t divisor = 1;
+
+    wgpu::Surface surface = nullptr;
+    wgpu::SwapChain swapchain = nullptr;
+
+    wgpu::SwapChainDescriptor currentDesc;
+    wgpu::SwapChainDescriptor targetDesc;
+};
+
+static std::unordered_map<GLFWwindow*, std::unique_ptr<WindowData>> _windows;
+static uint64_t windowSerial = 0;
+
+void SyncTargetSwapChainDescFromWindow(WindowData* data) {
+    int width;
+    int height;
+    glfwGetFramebufferSize(data->window, &width, &height);
+
+    data->targetDesc.width = std::max(1u, width / data->divisor);
+    data->targetDesc.height = std::max(1u, height / data->divisor);
+}
 
 static void error_callback(int error, const char* description)
 {
@@ -29,34 +86,36 @@ static void error_callback(int error, const char* description)
 extern "C"
 bool lab_imgui_init()
 {
-    if (_rootWindow)
-        return true;
-
     glfwSetErrorCallback(error_callback);
     if (!glfwInit()) {
         fprintf(stderr, "Could not initialize glfw");
         return false;
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1); // 4.1 is mac on Mac
-#if __APPLE__
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
+    // Choose an adapter.
+    // TODO: allow switching the window between devices.
+    DawnProcTable procs = dawn_native::GetProcs();
+    dawnProcSetProcs(&procs);
 
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    instance = std::make_unique<dawn_native::Instance>();
+    instance->DiscoverDefaultAdapters();
 
-    if (!_rootWindow) {
-        GLFWwindow* window = glfwCreateWindow(16, 16, "Root graphics context", NULL, NULL);
-        glfwMakeContextCurrent(window);
-        glfwSwapInterval(1); // must be set when a window's context is current
-        _rootWindow = window;
+    std::vector<dawn_native::Adapter> adapters = instance->GetAdapters();
+    for (dawn_native::Adapter& adapter : adapters) {
+        wgpu::AdapterProperties properties;
+        adapter.GetProperties(&properties);
+        if (properties.backendType != wgpu::BackendType::Null) {
+            chosenAdapter = adapter;
+            _backendType = properties.backendType;
+            break;
+        }
+    }
+    if (!chosenAdapter) {
+        printf("No adapters for wgpu\n");
+        return false;
     }
 
-    // leave the rootWindow bound.
-    glfwMakeContextCurrent(_rootWindow);
-    return _rootWindow != nullptr;
+    return true;
 }
 
 static void (*frame_cb)(void) = nullptr;
@@ -72,6 +131,31 @@ bool lab_imgui_create_window(const char* window_name, int width, int height,
     frame_cb = custom_frame;
 
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+    if (_backendType == wgpu::BackendType::OpenGL) {
+        // Ask for OpenGL 4.4 which is what the GL backend requires for compute shaders and
+        // texture views.
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+#if __APPLE__
+        // shouldn't actually get here.
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+    }
+    else if (_backendType == wgpu::BackendType::OpenGLES) {
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+        glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
+    }
+    else {
+        // Without this GLFW will initialize a GL context on the window, which prevents using
+        // the window with other APIs (by crashing in weird ways).
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    }
 
 #ifdef _WIN32
     // if it's a HighDPI monitor, try to scale everything
@@ -88,8 +172,10 @@ bool lab_imgui_create_window(const char* window_name, int width, int height,
     glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
 #endif
 
-    GLFWwindow* window = glfwCreateWindow(width, height, window_name, NULL, _rootWindow);
-    glfwMakeContextCurrent(window);
+    GLFWwindow* window = glfwCreateWindow(width, height, window_name, NULL, NULL);
+    if (_backendType == wgpu::BackendType::OpenGL || _backendType == wgpu::BackendType::OpenGLES)
+        glfwMakeContextCurrent(window);
+
     lab_imgui_init_window(window_name, window);
     //glfwMakeContextCurrent(_rootWindow);    // leave the root window bound
 
@@ -99,7 +185,8 @@ bool lab_imgui_create_window(const char* window_name, int width, int height,
         if (!ws.valid)
             return true;
 
-        glfwMakeContextCurrent(window);
+        if (_backendType == wgpu::BackendType::OpenGL || _backendType == wgpu::BackendType::OpenGLES)
+            glfwMakeContextCurrent(window);
 
         //glClearColor(0.25f, 0.25f, 0.25f, 1.f);
         //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -150,10 +237,10 @@ bool lab_imgui_update(float timeout_seconds, bool auto_close)
 
     for (auto w = _windows.begin(); w != _windows.end(); ++w) {
         ++window_count;
-        if (glfwWindowShouldClose(w->second)) {
+        if (glfwWindowShouldClose(w->second->window)) {
             ++close_count;
             if (auto_close) {
-                glfwDestroyWindow(w->second);
+                glfwDestroyWindow(w->second->window);
                 w = _windows.erase(w);
                 if (w == _windows.end())
                     break;
@@ -171,29 +258,71 @@ bool lab_imgui_update(float timeout_seconds, bool auto_close)
 extern "C"
 void lab_imgui_render(const lab_WindowState* ws)
 {
-    /// @TODO support multiple windows, via window state, not via loop over all windows
-
     glfwPollEvents();
 
     // Rendering
     ImGui::Render();
 
+    // create the swap chain if necessary
+    WindowData* data = nullptr;
+    for (auto& it : _windows) {
+        data = it.second.get();
+
+        SyncTargetSwapChainDescFromWindow(data);
+        if (!IsSameDescriptor(data->currentDesc, data->targetDesc) && !data->latched) {
+            data->swapchain = device.CreateSwapChain(data->surface, &data->targetDesc);
+            data->currentDesc = data->targetDesc;
+        }
+        break;
+    }
+
+    if (!data)
+        return;
+
+    wgpu::TextureView view = data->swapchain.GetCurrentTextureView();
+
     if (ws)
     {
+        static ImVec4 clear_color = { 0.25f, 0.25f, 0.25f, 1.f };
         //glViewport(0, 0, ws->fb_width, ws->fb_height);
-        //ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData());
+        WGPURenderPassColorAttachment color_attachments = {};
+        color_attachments.loadOp = WGPULoadOp_Clear;
+        color_attachments.storeOp = WGPUStoreOp_Store;
+        color_attachments.clearColor = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
+        color_attachments.view = view.Get();
+        //color_attachments.resolveTarget = wgpuSwapChainGetCurrentTextureView(wgpu_swap_chain);
+        WGPURenderPassDescriptor render_pass_desc = {};
+        render_pass_desc.colorAttachmentCount = 1;
+        render_pass_desc.colorAttachments = &color_attachments;
+        render_pass_desc.depthStencilAttachment = NULL;
+
+        WGPUCommandEncoderDescriptor enc_desc = {};
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device.Get(), &enc_desc);
+
+        WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_desc);
+        ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), pass);
+        wgpuRenderPassEncoderEndPass(pass);
+
+        WGPUCommandBufferDescriptor cmd_buffer_desc = {};
+        WGPUCommandBuffer cmd_buffer = wgpuCommandEncoderFinish(encoder, &cmd_buffer_desc);
+        WGPUQueue queue = device.GetQueue().Get();
+        wgpuQueueSubmit(queue, 1, &cmd_buffer);
+
+        data->swapchain.Present();
         return;
     }
 
+#if 0
     // note: ImGui multi-window is still not ready for primetime, this loop
     // will have to change when ImGui multi-window really exists.
     // right now, this is only valid because only one window will ever be created.
     for (auto w = _windows.begin(); w != _windows.end(); ++w) {
         int display_w, display_h;
-        glfwGetFramebufferSize(w->second, &display_w, &display_h);
+        glfwGetFramebufferSize(w->second->window, &display_w, &display_h);
         //glViewport(0, 0, display_w, display_h);
-        //ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData());
+        ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), pass);
     }
+#endif
 }
 
 extern "C"
@@ -201,9 +330,10 @@ void lab_imgui_present(const lab_WindowState*)
 {
     /// @TODO support multiple windows, via window state, not via loop over all windows
 
-    for (auto w = _windows.begin(); w != _windows.end(); ++w) {
-        glfwSwapBuffers(w->second);
-    }
+    if (_backendType == wgpu::BackendType::OpenGL || _backendType == wgpu::BackendType::OpenGLES)
+        for (auto w = _windows.begin(); w != _windows.end(); ++w) {
+            glfwSwapBuffers(w->second->window);
+        }
 }
 
 extern "C"
@@ -216,20 +346,104 @@ void lab_imgui_window_state(const char* window_name, lab_WindowState * s)
     s->height = 0;
     s->valid = false;
 
-    auto i = _windows.find(window_name);
+    auto i = _windows.begin();
+    for (; i != _windows.end(); ++i) {
+        if (i->second->name == window_name)
+            break;
+    }
     if (i == _windows.end())
         return;
 
-    glfwGetWindowSize(i->second, &s->width, &s->height);
-    glfwGetFramebufferSize(i->second, &s->fb_height, &s->fb_height);
+    glfwGetWindowSize(i->second->window, &s->width, &s->height);
+    glfwGetFramebufferSize(i->second->window, &s->fb_height, &s->fb_height);
     s->valid = (s->width > 0) && (s->height > 0);
 }
 
 
+#if defined(_WIN32)
+static std::unique_ptr<wgpu::ChainedStruct> SetupWindowAndGetSurfaceDescriptorForTesting(
+    GLFWwindow* window) {
+    std::unique_ptr<wgpu::SurfaceDescriptorFromWindowsHWND> desc =
+        std::make_unique<wgpu::SurfaceDescriptorFromWindowsHWND>();
+    desc->hwnd = glfwGetWin32Window(window);
+    desc->hinstance = GetModuleHandle(nullptr);
+    return std::move(desc);
+}
+#elif defined(DAWN_USE_X11)
+static std::unique_ptr<wgpu::ChainedStruct> SetupWindowAndGetSurfaceDescriptorForTesting(
+    GLFWwindow* window) {
+    std::unique_ptr<wgpu::SurfaceDescriptorFromXlib> desc =
+        std::make_unique<wgpu::SurfaceDescriptorFromXlib>();
+    desc->display = glfwGetX11Display();
+    desc->window = glfwGetX11Window(window);
+    return std::move(desc);
+}
+#elif defined(DAWN_ENABLE_BACKEND_METAL)
+// SetupWindowAndGetSurfaceDescriptorForTesting defined in GLFWUtils_metal.mm
+#else
+static std::unique_ptr<wgpu::ChainedStruct> SetupWindowAndGetSurfaceDescriptorForTesting(GLFWwindow*) {
+    return nullptr;
+}
+#endif
+
+static wgpu::Surface CreateSurfaceForWindow(wgpu::Instance instance, GLFWwindow* window) {
+    std::unique_ptr<wgpu::ChainedStruct> chainedDescriptor =
+        SetupWindowAndGetSurfaceDescriptorForTesting(window);
+
+    wgpu::SurfaceDescriptor descriptor;
+    descriptor.nextInChain = chainedDescriptor.get();
+    wgpu::Surface surface = instance.CreateSurface(&descriptor);
+    return surface;
+}
+
 extern "C"
 void lab_imgui_init_window(const char* window_name, GLFWwindow* window)
 {
-    _windows[std::string(window_name)] = window;
+    // Setup the device on that adapter.
+    device = wgpu::Device::Acquire(chosenAdapter.CreateDevice());
+    device.SetUncapturedErrorCallback(
+        [](WGPUErrorType errorType, const char* message, void*) {
+            const char* errorTypeName = "";
+            switch (errorType) {
+            case WGPUErrorType_Validation:
+                errorTypeName = "Validation";
+                break;
+            case WGPUErrorType_OutOfMemory:
+                errorTypeName = "Out of memory";
+                break;
+            case WGPUErrorType_Unknown:
+                errorTypeName = "Unknown";
+                break;
+            case WGPUErrorType_DeviceLost:
+                errorTypeName = "Device lost";
+                break;
+            default:
+                printf("Shouldn't get here\n");
+                return;
+            }
+            printf("error: %s\n", message);
+        },
+        nullptr);
+    queue = device.GetQueue();
+
+    wgpu::SwapChainDescriptor descriptor;
+    descriptor.usage = wgpu::TextureUsage::RenderAttachment;
+    descriptor.format = wgpu::TextureFormat::BGRA8Unorm;
+    descriptor.width = 0;
+    descriptor.height = 0;
+    descriptor.presentMode = wgpu::PresentMode::Fifo;
+
+    std::unique_ptr<WindowData> data = std::make_unique<WindowData>();
+    data->name = window_name;
+    data->window = window;
+    data->serial = windowSerial++;
+    data->surface = CreateSurfaceForWindow(instance->Get(), window);
+    data->currentDesc = descriptor;
+    data->targetDesc = descriptor;
+    SyncTargetSwapChainDescFromWindow(data.get());
+
+    _windows[window] = std::move(data);
+
 
     // Setup Dear ImGui binding
     IMGUI_CHECKVERSION();
@@ -238,8 +452,8 @@ void lab_imgui_init_window(const char* window_name, GLFWwindow* window)
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    //ImGui_ImplWGPU_Init(WGPUDevice device, 3, WGPUTextureFormat rt_format);
+    ImGui_ImplGlfw_InitForOther(window, true);
+    ImGui_ImplWGPU_Init(device.Get(), 3, WGPUTextureFormat_RGBA8Unorm);
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
@@ -275,8 +489,10 @@ void lab_imgui_shutdown()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    for (auto i : _windows)
-        glfwDestroyWindow(i.second);
+    for (auto i = _windows.begin(); i != _windows.end(); ++i) {
+        glfwDestroyWindow(i->second->window);
+    }
+
     glfwTerminate();
 }
 
