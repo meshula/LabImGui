@@ -71,9 +71,10 @@ else()
             PUBLIC
                 ${imgui_SOURCE_DIR}
                 ${imgui_SOURCE_DIR}/backends
+        		$<$<BOOL:${IMGUI_BACKEND_WGPU}>:${CMAKE_INSTALL_PREFIX}/include>
             PRIVATE 
-                $<$<BOOL:${IMGUI_BACKEND_DAWN}>:"${LABSLANG_DAWN_INSTALL_ROOT}/include">
-                $<$<BOOL:${IMGUI_BACKEND_WGPU}>:"${WEBGPU_HEADER_LOCATION}">
+	            #$<$<BOOL:${IMGUI_BACKEND_DAWN}>:"${LABSLANG_DAWN_INSTALL_ROOT}/include">
+		        #$<$<BOOL:${IMGUI_BACKEND_WGPU}>:"${WEBGPU_HEADER_LOCATION}">
             )
 
         if (APPLE)
@@ -91,16 +92,16 @@ else()
             set_property(TARGET imgui APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
         endif()
 
-        if (IMGUI_BACKEND_DAWN)
-            add_dependencies(imgui webgpu_header)
-        endif()
-
         target_link_libraries(imgui
             PUBLIC
                 $<$<BOOL:${IMGUI_BACKEND_GLFW}>:glfw>
-            PRIVATE
                 $<$<BOOL:${IMGUI_BACKEND_ANDROID}>:android>
+                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawncpp>
+                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_proc>
+                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_common>
                 $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_native>
+                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_wire>
+                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_utils>
                 $<$<BOOL:${IMGUI_BACKEND_DX9}>:d3d9.lib>
                 $<$<BOOL:${IMGUI_BACKEND_DX10}>:d3d10.lib>
                 $<$<BOOL:${IMGUI_BACKEND_DX11}>:d3d11.lib>
