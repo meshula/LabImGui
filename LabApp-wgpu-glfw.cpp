@@ -20,10 +20,11 @@
 #include <GLFW/glfw3native.h>
 
 #ifdef max
-#undef max
-#undef min
+#   undef max
+#   undef min
 #endif
 
+#include <array>
 #include <map>
 #include <memory>
 #include <string>
@@ -37,17 +38,87 @@ static uint64_t last_time = 0;
 static bool show_test_window = true;
 static bool show_another_window = false;
 static wgpu::BackendType _backendType = wgpu::BackendType::Null;
-
 static dawn_native::Adapter chosenAdapter;
 static std::unique_ptr<dawn_native::Instance> instance;
 static wgpu::Device device;
 static wgpu::Queue queue;
 
+static void (*frame_cb)(void) = nullptr;
+static float clear_color[4] = { 0,0,0,1 };
 
-bool IsSameDescriptor(const wgpu::SwapChainDescriptor& a, const wgpu::SwapChainDescriptor& b) {
-    return a.usage == b.usage && a.format == b.format && a.width == b.width &&
-        a.height == b.height && a.presentMode == b.presentMode;
+static constexpr uint8_t kMaxColorAttachments = 8u;
+
+struct ComboRenderPassDescriptor : public wgpu::RenderPassDescriptor {
+public:
+    ComboRenderPassDescriptor(std::initializer_list<wgpu::TextureView> colorAttachmentInfo,
+        wgpu::TextureView depthStencil = wgpu::TextureView());
+
+    ComboRenderPassDescriptor(const ComboRenderPassDescriptor& otherRenderPass);
+    const ComboRenderPassDescriptor& operator=(
+        const ComboRenderPassDescriptor& otherRenderPass);
+
+    std::array<wgpu::RenderPassColorAttachment, kMaxColorAttachments> cColorAttachments;
+    wgpu::RenderPassDepthStencilAttachment cDepthStencilAttachmentInfo = {};
+};
+
+ComboRenderPassDescriptor::ComboRenderPassDescriptor(
+    std::initializer_list<wgpu::TextureView> colorAttachmentInfo,
+    wgpu::TextureView depthStencil) {
+    for (uint32_t i = 0; i < kMaxColorAttachments; ++i) {
+        cColorAttachments[i].loadOp = wgpu::LoadOp::Clear;
+        cColorAttachments[i].storeOp = wgpu::StoreOp::Store;
+        cColorAttachments[i].clearColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+    }
+
+    cDepthStencilAttachmentInfo.clearDepth = 1.0f;
+    cDepthStencilAttachmentInfo.clearStencil = 0;
+    cDepthStencilAttachmentInfo.depthLoadOp = wgpu::LoadOp::Clear;
+    cDepthStencilAttachmentInfo.depthStoreOp = wgpu::StoreOp::Store;
+    cDepthStencilAttachmentInfo.stencilLoadOp = wgpu::LoadOp::Clear;
+    cDepthStencilAttachmentInfo.stencilStoreOp = wgpu::StoreOp::Store;
+
+    colorAttachmentCount = static_cast<uint32_t>(colorAttachmentInfo.size());
+    uint32_t colorAttachmentIndex = 0;
+    for (const wgpu::TextureView& colorAttachment : colorAttachmentInfo) {
+        if (colorAttachment.Get() != nullptr) {
+            cColorAttachments[colorAttachmentIndex].view = colorAttachment;
+        }
+        ++colorAttachmentIndex;
+    }
+    colorAttachments = cColorAttachments.data();
+
+    if (depthStencil.Get() != nullptr) {
+        cDepthStencilAttachmentInfo.view = depthStencil;
+        depthStencilAttachment = &cDepthStencilAttachmentInfo;
+    }
+    else {
+        depthStencilAttachment = nullptr;
+    }
 }
+
+ComboRenderPassDescriptor::ComboRenderPassDescriptor(const ComboRenderPassDescriptor& other) {
+    *this = other;
+}
+
+const ComboRenderPassDescriptor& ComboRenderPassDescriptor::operator=(
+    const ComboRenderPassDescriptor& otherRenderPass) {
+    cDepthStencilAttachmentInfo = otherRenderPass.cDepthStencilAttachmentInfo;
+    cColorAttachments = otherRenderPass.cColorAttachments;
+    colorAttachmentCount = otherRenderPass.colorAttachmentCount;
+
+    colorAttachments = cColorAttachments.data();
+
+    if (otherRenderPass.depthStencilAttachment != nullptr) {
+        // Assign desc.depthStencilAttachment to this->depthStencilAttachmentInfo;
+        depthStencilAttachment = &cDepthStencilAttachmentInfo;
+    }
+    else {
+        depthStencilAttachment = nullptr;
+    }
+
+    return *this;
+}
+
 
 struct WindowData {
     std::string name;
@@ -69,16 +140,21 @@ struct WindowData {
 static std::unordered_map<GLFWwindow*, std::unique_ptr<WindowData>> _windows;
 static uint64_t windowSerial = 0;
 
-void SyncTargetSwapChainDescFromWindow(WindowData* data) {
+bool IsSameDescriptor(const wgpu::SwapChainDescriptor& a, const wgpu::SwapChainDescriptor& b) {
+    return a.usage == b.usage && a.format == b.format && a.width == b.width &&
+        a.height == b.height && a.presentMode == b.presentMode;
+}
+
+void SyncTargetSwapChainDescFromWindow(WindowData* data) 
+{
     int width;
     int height;
     glfwGetFramebufferSize(data->window, &width, &height);
-
     data->targetDesc.width = std::max(1u, width / data->divisor);
     data->targetDesc.height = std::max(1u, height / data->divisor);
 }
 
-static void error_callback(int error, const char* description)
+static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error %d: %s\n", error, description);
 }
@@ -86,7 +162,7 @@ static void error_callback(int error, const char* description)
 extern "C"
 bool lab_imgui_init()
 {
-    glfwSetErrorCallback(error_callback);
+    glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
         fprintf(stderr, "Could not initialize glfw");
         return false;
@@ -118,11 +194,130 @@ bool lab_imgui_init()
     return true;
 }
 
-static void (*frame_cb)(void) = nullptr;
-static float clear_color[4] = { 0,0,0,1 };
+
+#if defined(_WIN32)
+static std::unique_ptr<wgpu::ChainedStruct> 
+SetupWindowAndGetSurfaceDescriptorForTesting(GLFWwindow* window) 
+{
+    std::unique_ptr<wgpu::SurfaceDescriptorFromWindowsHWND> desc =
+        std::make_unique<wgpu::SurfaceDescriptorFromWindowsHWND>();
+    desc->hwnd = glfwGetWin32Window(window);
+    desc->hinstance = GetModuleHandle(nullptr);
+    return std::move(desc);
+}
+#elif defined(DAWN_USE_X11)
+static std::unique_ptr<wgpu::ChainedStruct> SetupWindowAndGetSurfaceDescriptorForTesting(
+    GLFWwindow* window) {
+    std::unique_ptr<wgpu::SurfaceDescriptorFromXlib> desc =
+        std::make_unique<wgpu::SurfaceDescriptorFromXlib>();
+    desc->display = glfwGetX11Display();
+    desc->window = glfwGetX11Window(window);
+    return std::move(desc);
+}
+#elif defined(DAWN_ENABLE_BACKEND_METAL)
+// SetupWindowAndGetSurfaceDescriptorForTesting defined in GLFWUtils_metal.mm
+#else
+static std::unique_ptr<wgpu::ChainedStruct> SetupWindowAndGetSurfaceDescriptorForTesting(GLFWwindow*) 
+{
+    return nullptr;
+}
+#endif
+
+static wgpu::Surface CreateSurfaceForWindow(wgpu::Instance instance, GLFWwindow* window) 
+{
+    std::unique_ptr<wgpu::ChainedStruct> chainedDescriptor =
+        SetupWindowAndGetSurfaceDescriptorForTesting(window);
+
+    wgpu::SurfaceDescriptor descriptor;
+    descriptor.nextInChain = chainedDescriptor.get();
+    wgpu::Surface surface = instance.CreateSurface(&descriptor);
+    return surface;
+}
+
 
 extern "C"
-void lab_imgui_init_window(const char* window_name, GLFWwindow* window);
+void lab_imgui_init_window(const char* window_name, GLFWwindow * window)
+{
+    // Setup the device on that adapter.
+    device = wgpu::Device::Acquire(chosenAdapter.CreateDevice());
+    device.SetUncapturedErrorCallback(
+        [](WGPUErrorType errorType, const char* message, void*) {
+            const char* errorTypeName = "";
+            switch (errorType) {
+            case WGPUErrorType_Validation:
+                errorTypeName = "Validation";
+                break;
+            case WGPUErrorType_OutOfMemory:
+                errorTypeName = "Out of memory";
+                break;
+            case WGPUErrorType_Unknown:
+                errorTypeName = "Unknown";
+                break;
+            case WGPUErrorType_DeviceLost:
+                errorTypeName = "Device lost";
+                break;
+            default:
+                printf("Shouldn't get here\n");
+                return;
+            }
+            printf("error: %s\n", message);
+        },
+        nullptr);
+    queue = device.GetQueue();
+
+    wgpu::SwapChainDescriptor descriptor;
+    descriptor.usage = wgpu::TextureUsage::RenderAttachment;
+    descriptor.format = wgpu::TextureFormat::BGRA8Unorm;
+    descriptor.width = 0;
+    descriptor.height = 0;
+    descriptor.presentMode = wgpu::PresentMode::Fifo;
+
+    std::unique_ptr<WindowData> data = std::make_unique<WindowData>();
+    data->name = window_name;
+    data->window = window;
+    data->serial = windowSerial++;
+    data->surface = CreateSurfaceForWindow(instance->Get(), window);
+    data->currentDesc = descriptor;
+    data->targetDesc = descriptor;
+    SyncTargetSwapChainDescFromWindow(data.get());
+
+    _windows[window] = std::move(data);
+
+    // Setup Dear ImGui binding
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
+
+    ImGui_ImplGlfw_InitForOther(window, true);
+    ImGui_ImplWGPU_Init(device.Get(), 3, WGPUTextureFormat_BGRA8Unorm);
+
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    // Setup style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
+
+    // Load Fonts
+    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
+    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
+    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
+    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
+    // - Read 'misc/fonts/README.txt' for more instructions and details.
+    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
+    //io.Fonts->AddFontDefault();
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
+    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+    //IM_ASSERT(font != NULL);
+
+    /// @TODO - WindowState should be in the map, and it should include the dpi scale factor
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.ScaleAllSizes(highDPIscaleFactor);
+}
 
 extern "C"
 bool lab_imgui_create_window(const char* window_name, int width, int height,
@@ -228,6 +423,22 @@ bool lab_imgui_create_window(const char* window_name, int width, int height,
     return true;
 }
 
+
+extern "C"
+void lab_imgui_shutdown()
+{
+    // Cleanup
+    ImGui_ImplWGPU_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    for (auto i = _windows.begin(); i != _windows.end(); ++i) {
+        glfwDestroyWindow(i->second->window);
+    }
+
+    glfwTerminate();
+}
+
 extern "C"
 bool lab_imgui_update(float timeout_seconds, bool auto_close)
 {
@@ -279,35 +490,22 @@ void lab_imgui_render(const lab_WindowState* ws)
     if (!data)
         return;
 
-    wgpu::TextureView view = data->swapchain.GetCurrentTextureView();
 
     if (ws)
     {
-        static ImVec4 clear_color = { 0.25f, 0.25f, 0.25f, 1.f };
-        //glViewport(0, 0, ws->fb_width, ws->fb_height);
-        WGPURenderPassColorAttachment color_attachments = {};
-        color_attachments.loadOp = WGPULoadOp_Clear;
-        color_attachments.storeOp = WGPUStoreOp_Store;
-        color_attachments.clearColor = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
-        color_attachments.view = view.Get();
-        //color_attachments.resolveTarget = wgpuSwapChainGetCurrentTextureView(wgpu_swap_chain);
-        WGPURenderPassDescriptor render_pass_desc = {};
-        render_pass_desc.colorAttachmentCount = 1;
-        render_pass_desc.colorAttachments = &color_attachments;
-        render_pass_desc.depthStencilAttachment = NULL;
-
-        WGPUCommandEncoderDescriptor enc_desc = {};
-        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device.Get(), &enc_desc);
-
-        WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_desc);
-        ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), pass);
-        wgpuRenderPassEncoderEndPass(pass);
-
-        WGPUCommandBufferDescriptor cmd_buffer_desc = {};
-        WGPUCommandBuffer cmd_buffer = wgpuCommandEncoderFinish(encoder, &cmd_buffer_desc);
-        WGPUQueue queue = device.GetQueue().Get();
-        wgpuQueueSubmit(queue, 1, &cmd_buffer);
-
+        wgpu::TextureView view = data->swapchain.GetCurrentTextureView();
+        wgpu::CommandEncoder encoder = device.CreateCommandEncoder();
+        static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+        ComboRenderPassDescriptor desc({ view });
+        desc.cColorAttachments[0].loadOp = wgpu::LoadOp::Load;
+        desc.cColorAttachments[0].storeOp = wgpu::StoreOp::Store;
+        desc.cColorAttachments[0].clearColor = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
+        desc.cColorAttachments[0].view = view;
+        wgpu::RenderPassEncoder imgui_pass = encoder.BeginRenderPass(&desc);
+        ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), imgui_pass.Get());
+        imgui_pass.EndPass();
+        wgpu::CommandBuffer commands = encoder.Finish();
+        queue.Submit(1, &commands);
         data->swapchain.Present();
         return;
     }
@@ -360,141 +558,6 @@ void lab_imgui_window_state(const char* window_name, lab_WindowState * s)
 }
 
 
-#if defined(_WIN32)
-static std::unique_ptr<wgpu::ChainedStruct> SetupWindowAndGetSurfaceDescriptorForTesting(
-    GLFWwindow* window) {
-    std::unique_ptr<wgpu::SurfaceDescriptorFromWindowsHWND> desc =
-        std::make_unique<wgpu::SurfaceDescriptorFromWindowsHWND>();
-    desc->hwnd = glfwGetWin32Window(window);
-    desc->hinstance = GetModuleHandle(nullptr);
-    return std::move(desc);
-}
-#elif defined(DAWN_USE_X11)
-static std::unique_ptr<wgpu::ChainedStruct> SetupWindowAndGetSurfaceDescriptorForTesting(
-    GLFWwindow* window) {
-    std::unique_ptr<wgpu::SurfaceDescriptorFromXlib> desc =
-        std::make_unique<wgpu::SurfaceDescriptorFromXlib>();
-    desc->display = glfwGetX11Display();
-    desc->window = glfwGetX11Window(window);
-    return std::move(desc);
-}
-#elif defined(DAWN_ENABLE_BACKEND_METAL)
-// SetupWindowAndGetSurfaceDescriptorForTesting defined in GLFWUtils_metal.mm
-#else
-static std::unique_ptr<wgpu::ChainedStruct> SetupWindowAndGetSurfaceDescriptorForTesting(GLFWwindow*) {
-    return nullptr;
-}
-#endif
-
-static wgpu::Surface CreateSurfaceForWindow(wgpu::Instance instance, GLFWwindow* window) {
-    std::unique_ptr<wgpu::ChainedStruct> chainedDescriptor =
-        SetupWindowAndGetSurfaceDescriptorForTesting(window);
-
-    wgpu::SurfaceDescriptor descriptor;
-    descriptor.nextInChain = chainedDescriptor.get();
-    wgpu::Surface surface = instance.CreateSurface(&descriptor);
-    return surface;
-}
-
-extern "C"
-void lab_imgui_init_window(const char* window_name, GLFWwindow* window)
-{
-    // Setup the device on that adapter.
-    device = wgpu::Device::Acquire(chosenAdapter.CreateDevice());
-    device.SetUncapturedErrorCallback(
-        [](WGPUErrorType errorType, const char* message, void*) {
-            const char* errorTypeName = "";
-            switch (errorType) {
-            case WGPUErrorType_Validation:
-                errorTypeName = "Validation";
-                break;
-            case WGPUErrorType_OutOfMemory:
-                errorTypeName = "Out of memory";
-                break;
-            case WGPUErrorType_Unknown:
-                errorTypeName = "Unknown";
-                break;
-            case WGPUErrorType_DeviceLost:
-                errorTypeName = "Device lost";
-                break;
-            default:
-                printf("Shouldn't get here\n");
-                return;
-            }
-            printf("error: %s\n", message);
-        },
-        nullptr);
-    queue = device.GetQueue();
-
-    wgpu::SwapChainDescriptor descriptor;
-    descriptor.usage = wgpu::TextureUsage::RenderAttachment;
-    descriptor.format = wgpu::TextureFormat::BGRA8Unorm;
-    descriptor.width = 0;
-    descriptor.height = 0;
-    descriptor.presentMode = wgpu::PresentMode::Fifo;
-
-    std::unique_ptr<WindowData> data = std::make_unique<WindowData>();
-    data->name = window_name;
-    data->window = window;
-    data->serial = windowSerial++;
-    data->surface = CreateSurfaceForWindow(instance->Get(), window);
-    data->currentDesc = descriptor;
-    data->targetDesc = descriptor;
-    SyncTargetSwapChainDescFromWindow(data.get());
-
-    _windows[window] = std::move(data);
-
-
-    // Setup Dear ImGui binding
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
-
-    ImGui_ImplGlfw_InitForOther(window, true);
-    ImGui_ImplWGPU_Init(device.Get(), 3, WGPUTextureFormat_RGBA8Unorm);
-
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-    // Setup style
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
-
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Read 'misc/fonts/README.txt' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != NULL);
-
-    /// @TODO - WindowState should be in the map, and it should include the dpi scale factor
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(highDPIscaleFactor);
-}
-
-extern "C"
-void lab_imgui_shutdown()
-{
-    // Cleanup
-    ImGui_ImplWGPU_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
-    for (auto i = _windows.begin(); i != _windows.end(); ++i) {
-        glfwDestroyWindow(i->second->window);
-    }
-
-    glfwTerminate();
-}
 
 extern "C"
 void lab_imgui_new_docking_frame(const lab_WindowState* ws)
