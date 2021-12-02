@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.19)
 project(LabImgui)
 set(LABIMGUI_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
 cmake_policy(SET CMP0077 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # make submodules respect CMP0077
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # mac-metal-foundation
@@ -14,14 +17,14 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # win-dawn-glfw
 
 if (APPLE)
-    set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
-    #set(LABAPP_BACKEND "mac-gl-glfw" CACHE STRING "Backend")
+    #set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
+    set(LABAPP_BACKEND "mac-wgpu-glfw" CACHE STRING "Backend")
 elseif (WIN32)
-    set(LABAPP_BACKEND "win-dawn-glfw" CACHE STRING "Backend")
+    set(LABAPP_BACKEND "win-wgpu-glfw" CACHE STRING "Backend")
     #set(LABAPP_BACKEND "win-gl-glfw" CACHE STRING "Backend")
 endif()
 
-if("${LABAPP_BACKEND}" STREQUAL "win-dawn-glfw")
+if("${LABAPP_BACKEND}" STREQUAL "win-wgpu-glfw")
     set(IMGUI_BACKEND_DAWN ON)
     set(IMGUI_BACKEND_GLFW ON)
     set(IMGUI_BACKEND_OPENGL3 OFF)
@@ -47,6 +50,15 @@ elseif("${LABAPP_BACKEND}" STREQUAL "mac-metal-foundation")
     set(IMGUI_BACKEND_OSX ON)
     set(IMGUI_BACKEND_SOKOL OFF)
     set(IMGUI_BACKEND_WGPU OFF)
+    set(IMGUI_BACKEND_WINAPI OFF) 
+elseif("${LABAPP_BACKEND}" STREQUAL "mac-wgpu-glfw")
+    set(IMGUI_BACKEND_DAWN ON)
+    set(IMGUI_BACKEND_GLFW ON)
+    set(IMGUI_BACKEND_OPENGL3 OFF)
+    set(IMGUI_BACKEND_METAL OFF)
+    set(IMGUI_BACKEND_OSX ON)
+    set(IMGUI_BACKEND_SOKOL OFF)
+    set(IMGUI_BACKEND_WGPU ON)
     set(IMGUI_BACKEND_WINAPI OFF) 
 endif()
 

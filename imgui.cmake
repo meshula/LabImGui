@@ -96,12 +96,12 @@ else()
             PUBLIC
                 $<$<BOOL:${IMGUI_BACKEND_GLFW}>:glfw>
                 $<$<BOOL:${IMGUI_BACKEND_ANDROID}>:android>
-                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawncpp>
-                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_proc>
-                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_common>
-                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_native>
-                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_wire>
-                $<$<BOOL:${IMGUI_BACKED_DAWN}>:dawn_utils>
+                $<$<BOOL:${IMGUI_BACKEND_DAWN}>:dawncpp>
+                $<$<BOOL:${IMGUI_BACKEND_DAWN}>:dawn_proc>
+                $<$<BOOL:${IMGUI_BACKEND_DAWN}>:dawn_common>
+                $<$<BOOL:${IMGUI_BACKEND_DAWN}>:dawn_native>
+                $<$<BOOL:${IMGUI_BACKEND_DAWN}>:dawn_wire>
+                $<$<BOOL:${IMGUI_BACKEND_DAWN}>:dawn_utils>
                 $<$<BOOL:${IMGUI_BACKEND_DX9}>:d3d9.lib>
                 $<$<BOOL:${IMGUI_BACKEND_DX10}>:d3d10.lib>
                 $<$<BOOL:${IMGUI_BACKEND_DX11}>:d3d11.lib>
