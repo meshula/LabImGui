@@ -7,20 +7,13 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # make submodules respect CMP0077
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# mac-metal-foundation
-# mac-gl-glfw
-# mac-metal-sokol
-# mac-gl-sokol
-#
-# win-gl-glfw
-# win-dawn-glfw
-
 if (APPLE)
     #set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
     set(LABAPP_BACKEND "mac-wgpu-glfw" CACHE STRING "Backend")
 elseif (WIN32)
     #set(LABAPP_BACKEND "win-wgpu-glfw" CACHE STRING "Backend")
-    set(LABAPP_BACKEND "win-gl-glfw" CACHE STRING "Backend")
+    #set(LABAPP_BACKEND "win-gl-glfw" CACHE STRING "Backend")
+    set(LABAPP_BACKEND "win-d3d11-sokol" CACHE STRING "Backend")
     #set(LABAPP_BACKEND "win-gl-sokol" CACHE STRING "Backend")
 endif()
 
@@ -49,6 +42,16 @@ elseif("${LABAPP_BACKEND}" STREQUAL "win-gl-sokol")
     set(IMGUI_BACKEND_DAWN OFF)
     set(IMGUI_BACKEND_GLFW OFF)
     set(IMGUI_BACKEND_OPENGL3 ON)
+    set(IMGUI_BACKEND_METAL OFF)
+    set(IMGUI_BACKEND_OSX OFF)
+    set(IMGUI_BACKEND_SOKOL ON)
+    set(IMGUI_BACKEND_WGPU OFF)
+    set(IMGUI_BACKEND_WINAPI OFF) 
+elseif("${LABAPP_BACKEND}" STREQUAL "win-d3d11-sokol")
+    set(IMGUI_BACKEND_D3D11 ON)
+    set(IMGUI_BACKEND_DAWN OFF)
+    set(IMGUI_BACKEND_GLFW OFF)
+    set(IMGUI_BACKEND_OPENGL3 OFF)
     set(IMGUI_BACKEND_METAL OFF)
     set(IMGUI_BACKEND_OSX OFF)
     set(IMGUI_BACKEND_SOKOL ON)
