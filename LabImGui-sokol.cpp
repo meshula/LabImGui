@@ -188,7 +188,11 @@ static void frame(void) {
     const int width = sapp_width();
     const int height = sapp_height();
     const double delta_time = stm_sec(stm_laptime(&last_time));
-    simgui_new_frame(width, height, delta_time);
+    const float dpi_scale = 1.f;
+    simgui_frame_desc_t frame_desc{
+        width, height, delta_time, dpi_scale
+    };
+    simgui_new_frame(&frame_desc);
 
     if (frame_cb)
         frame_cb();
