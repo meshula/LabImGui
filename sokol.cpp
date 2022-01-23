@@ -21,6 +21,7 @@
 #include "sokol_glue.h"
 #include "sokol_time.h"
 #include "sokol_gl.h"
+#include "sokol_gp.h"
 #ifdef HAVE_IMGUI
 # include "sokol_imgui.h"
 # include "sokol_gfx_imgui.h"

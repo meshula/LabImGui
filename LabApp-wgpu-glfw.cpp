@@ -6,6 +6,9 @@
 #include "imgui_impl_wgpu.h"
 
 #include "LabImgui/LabImGui.h"
+
+#include "implot.h"
+
 #include <GLFW/glfw3.h>
 #include <dawn/dawn_proc.h>
 #include <dawn/webgpu_cpp.h>
@@ -317,6 +320,8 @@ void lab_imgui_init_window(const char* window_name, GLFWwindow * window)
     /// @TODO - WindowState should be in the map, and it should include the dpi scale factor
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(highDPIscaleFactor);
+
+    ImPlot::CreateContext();
 }
 
 extern "C"
@@ -428,6 +433,7 @@ extern "C"
 void lab_imgui_shutdown()
 {
     // Cleanup
+    ImPlot::DestroyContext();
     ImGui_ImplWGPU_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

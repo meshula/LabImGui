@@ -4,14 +4,119 @@
 #include "sokol_gfx.h"
 #include "sokol_time.h"
 #include "sokol_glue.h"
+#include "sokol_gp.h"
 #include "imgui.h"
 #include "sokol_imgui.h"
 #include "imgui_internal.h"
+#include "implot.h"
 
 static sg_pass_action pass_action;
 static uint64_t last_time = 0;
 static bool show_test_window = true;
 static bool show_another_window = false;
+
+
+
+static sgp_vec2 points_buffer[4096];
+static const float PI = 3.14159265358979323846264338327f;
+
+static void draw_rects(void) {
+    sgp_irect viewport = sgp_query_state()->viewport;
+    int width = viewport.w, height = viewport.h;
+    int size = 64;
+    int hsize = size / 2;
+    float time = sapp_frame_count() / 60.0f;
+    float t = (1.0f + sinf(time)) / 2.0f;
+
+    // left
+    sgp_push_transform();
+    sgp_translate(width * 0.25f - hsize, height * 0.5f - hsize);
+    sgp_translate(0.0f, 2 * size * t - size);
+    sgp_set_color(t, 0.3f, 1.0f - t, 1.0f);
+    sgp_draw_filled_rect(0, 0, size, size);
+    sgp_pop_transform();
+
+    // middle
+    sgp_push_transform();
+    sgp_translate(width * 0.5f - hsize, height * 0.5f - hsize);
+    sgp_rotate_at(time, hsize, hsize);
+    sgp_set_color(t, 1.0f - t, 0.3f, 1.0f);
+    sgp_draw_filled_rect(0, 0, size, size);
+    sgp_pop_transform();
+
+    // right
+    sgp_push_transform();
+    sgp_translate(width * 0.75f - hsize, height * 0.5f - hsize);
+    sgp_scale_at(t + 0.25f, t + 0.5f, hsize, hsize);
+    sgp_set_color(0.3f, t, 1.0f - t, 1.0f);
+    sgp_draw_filled_rect(0, 0, size, size);
+    sgp_pop_transform();
+}
+
+static void draw_points(void) {
+    sgp_set_color(1.0f, 1.0f, 1.0f, 1.0f);
+    sgp_irect viewport = sgp_query_state()->viewport;
+    int width = viewport.w, height = viewport.h;
+    unsigned int count = 0;
+    for (int y = 64; y < height - 64 && count < 4096; y += 8) {
+        for (int x = 64; x < width - 64 && count < 4096; x += 8) {
+            sgp_vec2 v = { (float)x,(float)y };
+            points_buffer[count++] = v;
+        }
+    }
+    sgp_draw_points(points_buffer, count);
+}
+
+static void draw_lines(void) {
+    sgp_set_color(1.0f, 1.0f, 1.0f, 1.0f);
+    unsigned int count = 0;
+    sgp_irect viewport = sgp_query_state()->viewport;
+    sgp_vec2 c = { viewport.w / 2.0f, viewport.h / 2.0f };
+    points_buffer[count++] = c;
+    for (float theta = 0.0f; theta <= PI * 8.0f; theta += PI / 16.0f) {
+        float r = 10.0f * theta;
+        sgp_vec2 v = { c.x + r * cosf(theta), c.y + r * sinf(theta) };
+        points_buffer[count++] = v;
+    }
+    sgp_draw_lines_strip(points_buffer, count);
+}
+
+static void draw_triangles(void) {
+    sgp_irect viewport = sgp_query_state()->viewport;
+    int width = viewport.w, height = viewport.h;
+    float hw = width * 0.5f;
+    float hh = height * 0.5f;
+    float w = height * 0.2f;
+    float ax = hw - w, ay = hh + w;
+    float bx = hw, by = hh - w;
+    float cx = hw + w, cy = hh + w;
+    sgp_set_color(1.0f, 0.0f, 1.0f, 1.0f);
+    sgp_push_transform();
+    sgp_translate(-w * 1.5f, 0.0f);
+    sgp_draw_filled_triangle(ax, ay, bx, by, cx, cy);
+    sgp_translate(w * 3.0f, 0.0f);
+    unsigned int count = 0;
+    float step = (2.0f * PI) / 6.0f;
+    for (float theta = 0.0f; theta <= 2.0f * PI + step * 0.5f; theta += step) {
+        sgp_vec2 v = { hw + w * cosf(theta), hh - w * sinf(theta) };
+        points_buffer[count++] = v;
+        if (count % 3 == 1) {
+            sgp_vec2 u = { hw, hh };
+            points_buffer[count++] = u;
+        }
+    }
+    sgp_set_color(0.0f, 1.0f, 1.0f, 1.0f);
+    sgp_draw_filled_triangles_strip(points_buffer, count);
+    sgp_pop_transform();
+}
+
+
+
+
+
+
+
+
 
 extern "C"
 bool lab_imgui_init()
@@ -170,12 +275,21 @@ static void init(void) {
     sg_setup(&desc);
     stm_setup();
 
+    // initialize Sokol GP
+    sgp_desc sgpdesc = { 0 };
+    sgp_setup(&sgpdesc);
+    if (!sgp_is_valid()) {
+        fprintf(stderr, "Failed to create Sokol GP context: %s\n", sgp_get_error_message(sgp_get_last_error()));
+    }
+
     // use sokol-imgui with all default-options (we're not doing
     // multi-sampled rendering or using non-default pixel formats)
     simgui_desc_t simgui_desc = { };
     simgui_setup(&simgui_desc);
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    ImPlot::CreateContext();
 
     // initial clear color
     pass_action.colors[0].action = SG_ACTION_CLEAR;
@@ -189,6 +303,57 @@ static void frame(void) {
     const int height = sapp_height();
     const double delta_time = stm_sec(stm_laptime(&last_time));
     const float dpi_scale = 1.f;
+
+    // sgp demo
+    {
+        // begin draw commands queue
+        int width = sapp_width(), height = sapp_height();
+        sgp_begin(width, height);
+
+        int hw = width / 2;
+        int hh = height / 2;
+
+        // draw background
+        sgp_set_color(0.05f, 0.05f, 0.05f, 1.0f);
+        sgp_clear();
+        sgp_reset_color();
+
+        // top left
+        sgp_viewport(0, 0, hw, hh);
+        sgp_set_color(0.1f, 0.1f, 0.1f, 1.0f);
+        sgp_clear();
+        sgp_reset_color();
+        sgp_push_transform();
+        sgp_translate(0.0f, -hh / 4.0f);
+        draw_rects();
+        sgp_pop_transform();
+        sgp_push_transform();
+        sgp_translate(0.0f, hh / 4.0f);
+        sgp_scissor(0, 0, hw, 3.0f * hh / 4.0f);
+        draw_rects();
+        sgp_reset_scissor();
+        sgp_pop_transform();
+
+        // top right
+        sgp_viewport(hw, 0, hw, hh);
+        draw_triangles();
+
+        // bottom left
+        sgp_viewport(0, hh, hw, hh);
+        draw_points();
+
+        // bottom right
+        sgp_viewport(hw, hh, hw, hh);
+        sgp_set_color(0.1f, 0.1f, 0.1f, 1.0f);
+        sgp_clear();
+        sgp_reset_color();
+        draw_lines();
+    }
+
+
+
+
+
     simgui_frame_desc_t frame_desc{
         width, height, delta_time, dpi_scale
     };
@@ -228,13 +393,22 @@ static void frame(void) {
 
     // the sokol_gfx draw pass
     sg_begin_default_pass(&pass_action, width, height);
+
+    // sgp draw
+    {
+        sgp_flush();
+        sgp_end();
+    }
+
     simgui_render();
     sg_end_pass();
     sg_commit();
 }
 
 static void cleanup(void) {
+    ImPlot::DestroyContext();
     simgui_shutdown();
+    sgp_shutdown();
     sg_shutdown();
 }
 
@@ -262,5 +436,3 @@ bool lab_imgui_create_window(const char* window_name, int width, int height,
     sapp_run(&app_desc);
     return true;
 }
-
-

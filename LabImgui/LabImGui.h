@@ -1,6 +1,6 @@
 
-#ifndef LABIMGUI_SOKOL_H
-#define LABIMGUI_SOKOL_H
+#ifndef LABIMGUI_H
+#define LABIMGUI_H
 
 #ifdef __cplusplus
 #  define LABIMGUI_API extern "C"

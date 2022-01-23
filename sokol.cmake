@@ -57,7 +57,7 @@ else()
         #    set(PLATFORM_LIBS ws2_32 Iphlpapi.lib opengl32.lib)
         endif()
 
-        target_link_libraries(sokol PUBLIC Dear::Imgui ${PLATFORM_LIBS})
+        target_link_libraries(sokol PUBLIC Dear::Imgui sokol::sokol_gp ${PLATFORM_LIBS})
 
         if(APPLE)
             set_source_files_properties(src/sokol.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++ -fobjc-arc")

@@ -77,6 +77,10 @@ else()
 		        #$<$<BOOL:${IMGUI_BACKEND_WGPU}>:"${WEBGPU_HEADER_LOCATION}">
             )
 
+        #target_compile_definitions(imgui PUBLIC
+        #    ImDrawIdx=ImU32
+        #)
+
         if (APPLE)
             if(CMAKE_OSX_SYSROOT MATCHES ".*iphoneos.*")
                 target_link_libraries(imgui PUBLIC

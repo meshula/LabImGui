@@ -94,8 +94,10 @@ if (IMGUI_BACKEND_DAWN)
 endif()
 
 include(imgui.cmake)
+include(ImPlot.cmake)
 
 if (IMGUI_BACKEND_SOKOL)
+    include(sokol_gp.cmake)
     include(sokol.cmake)
     set(BACKEND_LIB sokol::sokol)
     set(PLATFORM_SRC
@@ -139,15 +141,23 @@ add_library(LabImgui STATIC
 )
 set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
 
-target_link_libraries(LabImgui Dear::Imgui ${BACKEND_LIB})
-target_include_directories(LabImgui PUBLIC ${LABIMGUI_ROOT} ${imgui_SOURCE_DIR} ${glfw_SOURCE_DIR})
+target_link_libraries(LabImgui 
+    Dear::Imgui 
+    Dear::ImPlot
+    ${BACKEND_LIB})
+
+target_include_directories(LabImgui 
+    PUBLIC 
+        ${LABIMGUI_ROOT} 
+        ${imgui_SOURCE_DIR} 
+        ${glfw_SOURCE_DIR})
 
 install(TARGETS LabImgui
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
+    ARCHIVE   DESTINATION lib
+    LIBRARY   DESTINATION lib
     FRAMEWORK DESTINATION lib
-    BUNDLE DESTINATION bin
-    RUNTIME DESTINATION bin)
+    BUNDLE    DESTINATION bin
+    RUNTIME   DESTINATION bin)
 
 install(FILES ${LABIMGUI_PUBLIC_H} DESTINATION include/LabImGui)
 
@@ -157,9 +167,16 @@ endif()
 
 add_library(Lab::Imgui ALIAS LabImgui)
 
+#------------------ LabImguiHello
+#
 add_executable(LabImguiHello LabImguiHello.cpp)
-target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM})
 set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
+
+target_link_libraries(LabImguiHello 
+    Lab::Imgui 
+    ${BACKEND_LIB} 
+    ${LABIMGUI_RENDER_SYSTEM})
+
 install(TARGETS LabImguiHello
     BUNDLE DESTINATION bin
     RUNTIME DESTINATION bin)
