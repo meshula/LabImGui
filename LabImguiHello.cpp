@@ -1,7 +1,7 @@
 
 //#include <GL/gl3w.h>
 #include "LabImgui/LabImGui.h"
-
+#include "LabDirectories.h"
 #include "imgui.h"
 #include "implot.h"
 
@@ -40,7 +40,8 @@ void imgui_frame()
 
 int main(int argv, char** argc) try
 {
-    lab_imgui_init();
+    const char* asset_root = lab_application_resource_path(argc[0], "share/lab_font_demo/");
+    lab_imgui_init(argc[0], asset_root);
     lab_imgui_create_window("Hello LabImGui", 1024, 768, imgui_frame);
     lab_imgui_shutdown();
     return 0;

@@ -41,7 +41,8 @@ static uint64_t last_time = 0;
 static bool show_test_window = true;
 static bool show_another_window = false;
 static wgpu::BackendType _backendType = wgpu::BackendType::Null;
-static dawn_native::Adapter chosenAdapter;
+static dawn_native::Adapter chosenAdapter;:w
+
 static std::unique_ptr<dawn_native::Instance> instance;
 static wgpu::Device device;
 static wgpu::Queue queue;
@@ -163,7 +164,7 @@ static void glfw_error_callback(int error, const char* description)
 }
 
 extern "C"
-bool lab_imgui_init()
+bool lab_imgui_init(const char* asset_root)
 {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {

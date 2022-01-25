@@ -99,6 +99,8 @@ include(ImPlot.cmake)
 if (IMGUI_BACKEND_SOKOL)
     include(sokol_gp.cmake)
     include(sokol.cmake)
+    include(rapidjson.cmake)
+    include(LabFont.cmake)
     set(BACKEND_LIB sokol::sokol)
     set(PLATFORM_SRC
         LabImGui-sokol.cpp)
@@ -169,11 +171,15 @@ add_library(Lab::Imgui ALIAS LabImgui)
 
 #------------------ LabImguiHello
 #
-add_executable(LabImguiHello LabImguiHello.cpp)
+add_executable(LabImguiHello 
+    LabImguiHello.cpp
+    LabDirectories.h
+    LabDirectories.cpp)
+
 set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 
 target_link_libraries(LabImguiHello 
-    Lab::Imgui 
+    Lab::Imgui Lab::Font
     ${BACKEND_LIB} 
     ${LABIMGUI_RENDER_SYSTEM})
 

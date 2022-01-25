@@ -4,17 +4,22 @@
 #include "sokol_gfx.h"
 #include "sokol_time.h"
 #include "sokol_glue.h"
+#include "sokol_gl.h"
 #include "sokol_gp.h"
 #include "imgui.h"
 #include "sokol_imgui.h"
 #include "imgui_internal.h"
 #include "implot.h"
 
+void font_demo_init(const char* asset_root);
+void fontDemo(float& dx, float& dy, float sx, float sy);
+
 static sg_pass_action pass_action;
 static uint64_t last_time = 0;
 static bool show_test_window = true;
 static bool show_another_window = false;
-
+static const char* arg0 = nullptr;
+static const char* asset_root = nullptr;
 
 
 static sgp_vec2 points_buffer[4096];
@@ -119,8 +124,10 @@ static void draw_triangles(void) {
 
 
 extern "C"
-bool lab_imgui_init()
+bool lab_imgui_init(const char* arg0_, const char* asset_root_)
 {
+    arg0 = strdup(arg0);
+    asset_root = strdup(asset_root_);
     return true;
 }
 
@@ -275,6 +282,11 @@ static void init(void) {
     sg_setup(&desc);
     stm_setup();
 
+    /* setup sokol-gl */
+    sgl_desc_t desc_t;
+    memset(&desc_t, 0, sizeof(desc_t));
+    sgl_setup(&desc_t);
+
     // initialize Sokol GP
     sgp_desc sgpdesc = { 0 };
     sgp_setup(&sgpdesc);
@@ -291,6 +303,9 @@ static void init(void) {
 
     ImPlot::CreateContext();
 
+    font_demo_init(asset_root);
+
+
     // initial clear color
     pass_action.colors[0].action = SG_ACTION_CLEAR;
     pass_action.colors[0].value = { 0.0f, 0.5f, 0.7f, 1.0f };
@@ -305,6 +320,7 @@ static void frame(void) {
     const float dpi_scale = 1.f;
 
     // sgp demo
+    if (true)
     {
         // begin draw commands queue
         int width = sapp_width(), height = sapp_height();
@@ -350,9 +366,21 @@ static void frame(void) {
         draw_lines();
     }
 
+    // sokol_gl
+    {
+        sgl_defaults();
+        sgl_matrix_mode_projection();
+        sgl_viewport(0, 0, width, height, true);
+        sgl_ortho(0.0f, (float)sapp_width(), (float)sapp_height(), 0.0f, -1.0f, +1.0f);
+        sgl_scissor_rect(0, 0, sapp_width(), sapp_height(), true);
 
+        float sx, sy, dx, dy, lh = 0.0f;
+        const float dpis = 1.f;
+        sx = 50 * dpis; sy = 50 * dpis;
+        dx = sx; dy = sy;
 
-
+        fontDemo(dx, dy, sx, sy);
+    }
 
     simgui_frame_desc_t frame_desc{
         width, height, delta_time, dpi_scale
@@ -399,6 +427,8 @@ static void frame(void) {
         sgp_flush();
         sgp_end();
     }
+
+    sgl_draw();
 
     simgui_render();
     sg_end_pass();

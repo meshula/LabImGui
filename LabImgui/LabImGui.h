@@ -23,7 +23,7 @@ typedef struct
 // this must be called before OpenGL is invoked, otherwise
 // on Windows, only GL 1.1 will be available.
 LABIMGUI_API
-bool lab_imgui_init();
+bool lab_imgui_init(const char* arg0, const char* asset_root);
 
 // create a glfw Imgui window and initialize the Imgui context
 LABIMGUI_API
