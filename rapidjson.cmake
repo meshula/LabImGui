@@ -8,19 +8,19 @@ else()
     message(STATUS "Installing RapidJSON")
 
     include(FetchContent)
-    FetchContent_Declare(rapidson
+    FetchContent_Declare(rapidjson
         GIT_REPOSITORY "https://github.com/TenCent/rapidjson.git"
         GIT_SHALLOW ON)
 
-    FetchContent_GetProperties(rapidson)
-    if (NOT rapidson_POPULATED)
-        FetchContent_Populate(rapidson)
+    FetchContent_GetProperties(rapidjson)
+    if (NOT rapidjson_POPULATED)
+        FetchContent_Populate(rapidjson)
 
-        add_library(rapidson INTERFACE ${IMPLOT_SRC} ${IMPLOT_HEADERS})
-        target_include_directories(rapidson INTERFACE
-            ${rapidson_SOURCE_DIR}/include)
+        add_library(rapidjson INTERFACE)
+        target_include_directories(rapidjson INTERFACE
+            ${rapidjson_SOURCE_DIR}/include)
 
-    add_library(RapidJSON::RapidJSON ALIAS rapidson)
+    add_library(RapidJSON::RapidJSON ALIAS rapidjson)
     endif()
 endif()
 
