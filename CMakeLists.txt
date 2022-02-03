@@ -101,8 +101,11 @@ if (IMGUI_BACKEND_SOKOL)
     include(sokol.cmake)
     include(rapidjson.cmake)
     include(LabFont.cmake)
+    include(cute_headers.cmake)
     set(BACKEND_LIB sokol::sokol)
     set(PLATFORM_SRC
+        LabImGui-cute_headers.c
+        LabImGui-cute_headers.cpp
         LabImGui-sokol.cpp)
 endif()
 
@@ -146,6 +149,7 @@ set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
 target_link_libraries(LabImgui 
     Dear::Imgui 
     Dear::ImPlot
+    cute::headers
     ${BACKEND_LIB})
 
 target_include_directories(LabImgui 
@@ -186,3 +190,10 @@ target_link_libraries(LabImguiHello
 install(TARGETS LabImguiHello
     BUNDLE DESTINATION bin
     RUNTIME DESTINATION bin)
+
+install(FILES
+    "resources/robots1.png"
+    "resources/robots1.ase"
+    "resources/invaders.ase"
+    DESTINATION share/lab_font_demo)
+
