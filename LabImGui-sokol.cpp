@@ -11,6 +11,10 @@
 #include "imgui_internal.h"
 #include "implot.h"
 
+#include "cute_aseprite.h"
+#include "cute_png.h"
+#include "cute_spritebatch.h"
+
 void font_demo_init(const char* asset_root);
 void fontDemo(float& dx, float& dy, float sx, float sy);
 
@@ -21,9 +25,311 @@ static bool show_another_window = false;
 static const char* arg0 = nullptr;
 static const char* asset_root = nullptr;
 
-
 static sgp_vec2 points_buffer[4096];
 static const float PI = 3.14159265358979323846264338327f;
+
+typedef struct {
+    int w, h;
+    uint8_t* rgba;
+} Sprite;
+
+
+struct SpriteEngine {
+    cp_image_t png;
+    spritebatch_config_t config;
+    spritebatch_t batch;
+    ase_t* robots_ase;
+    sg_image robots_sheet;
+    sg_image sprite_textures[32];
+    sg_image bench_image;
+    spritebatch_sprite_t sprite;
+    int i = 0;
+    int call_count = 0;
+
+    int sprite_count = 0;
+    Sprite** sprites = nullptr;
+};
+
+static SpriteEngine* sprite_engine = nullptr;
+
+
+static sg_image create_image(int width, int height) {
+    size_t num_pixels = (size_t)(width * height * 4);
+    unsigned char* data = (unsigned char*)malloc(num_pixels);
+    assert(data);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            data[y * width * 4 + x * 4 + 0] = (x * 255) / width;
+            data[y * width * 4 + x * 4 + 1] = (y * 255) / height;
+            data[y * width * 4 + x * 4 + 2] = 255 - (x * y * 255) / (width * height);
+            data[y * width * 4 + x * 4 + 3] = 255;
+        }
+    }
+    sg_image_desc image_desc;
+    memset(&image_desc, 0, sizeof(sg_image_desc));
+    image_desc.width = width;
+    image_desc.height = height;
+    image_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
+    image_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
+    image_desc.data.subimage[0][0].ptr = data;
+    image_desc.data.subimage[0][0].size = num_pixels;
+    sg_image image = sg_make_image(&image_desc);
+    free(data);
+    assert(sg_query_image_state(image) == SG_RESOURCESTATE_VALID);
+    return image;
+}
+
+
+
+// callbacks for cute_spritebatch.h
+static void batch_report(spritebatch_sprite_t* sprites, int count, int texture_w, int texture_h, void* udata)
+{
+    SpriteEngine* se = (SpriteEngine*)udata;
+    ++se->call_count;
+
+    static bool once = true;
+    if (once) {
+        se->bench_image = create_image(32, 32);
+        once = false;
+    }
+
+    (void)texture_w;
+    (void)texture_h;
+
+    for (int i = 0; i < count; ++i) {
+        spritebatch_sprite_t* spr = &sprites[i];
+
+        sgp_set_color(1.0f, 1.0f, 1.0f, 1.0f);
+        unsigned int count = 0;
+        sgp_irect viewport = sgp_query_state()->viewport;
+        sgp_vec2 c = { viewport.w / 2.0f, viewport.h / 2.0f };
+        points_buffer[count++] = c;
+        sgp_vec2 v = { spr->x, spr->y };
+        points_buffer[count++] = v;
+        v = { spr->x + spr->w, spr->y + spr->h };
+        points_buffer[count++] = v;
+        sgp_draw_lines_strip(points_buffer, count);
+    }
+    for (int i = 0; i < count; ++i) {
+        spritebatch_sprite_t* spr = &sprites[i];
+        //sgp_set_image(0, se->bench_image);
+        sgp_set_image(0, se->sprite_textures[spr->texture_id]);
+        // @todo set rotation
+        sgp_draw_textured_rect(spr->x, spr->y, spr->w, spr->h);
+    }
+}
+
+// given the user supplied image_id, copy the raw pixels for that image into buffer
+static void get_pixels(SPRITEBATCH_U64 image_id, void* buffer, int bytes_to_fill, void* udata)
+{
+    SpriteEngine* se = (SpriteEngine*)udata;
+    memcpy(buffer, se->sprites[image_id]->rgba, bytes_to_fill);
+}
+
+static SPRITEBATCH_U64 generate_texture_handle(void* pixels, int w, int h, void* udata)
+{
+    if (!pixels)
+        return 0;
+
+    SpriteEngine* se = (SpriteEngine*)udata;
+    se->sprite_textures[se->i] = sg_alloc_image();
+    sg_image_desc img_desc;
+    memset(&img_desc, 0, sizeof(img_desc));
+    img_desc.width = w;
+    img_desc.height = h;
+    img_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+    img_desc.wrap_u = SG_WRAP_REPEAT;
+    img_desc.wrap_v = SG_WRAP_REPEAT;
+    img_desc.min_filter = SG_FILTER_LINEAR;
+    img_desc.mag_filter = SG_FILTER_LINEAR;
+    img_desc.data.subimage[0][0] = {
+        pixels, (size_t)(img_desc.width * img_desc.height * 4)
+    };
+    sg_init_image(se->sprite_textures[se->i], &img_desc);
+    ++se->i;
+    return (SPRITEBATCH_U64) se->i - 1;
+}
+
+static void destroy_texture_handle(SPRITEBATCH_U64 texture_id, void* udata)
+{
+    SpriteEngine* se = (SpriteEngine*)udata;
+    sg_dealloc_image(se->sprite_textures[texture_id]);
+}
+
+
+static void blit(
+    uint8_t* src,  int src_x,  int src_y,  int src_stride,
+    uint8_t* dest, int dest_x, int dest_y, int dest_stride,
+    int w, int h, int bpp)
+{
+    char* src_ptr = (char*)(uintptr_t)src + (src_y * src_stride) + (src_x * bpp);
+    char* dest_ptr = (char*)(uintptr_t)dest + (dest_y * dest_stride) + (dest_x * bpp);
+
+    for (int y = 0; y < h; y++)
+    {
+        memcpy(dest_ptr, src_ptr, w * bpp);
+        src_ptr += src_stride;
+        dest_ptr += dest_stride;
+    }
+}
+
+
+SpriteEngine* sprite_engine_init(const char* asset_root)
+{
+    SpriteEngine* se = (SpriteEngine*)malloc(sizeof(SpriteEngine));
+    if (!se)
+        return se;
+
+    memset(se, 0, sizeof(SpriteEngine));
+
+    char buf[1024];
+    strncpy(buf, asset_root, sizeof(buf));
+    buf[1023] = '\0';
+    int sz = strlen(asset_root);
+    if (sz < 1000) {
+        if (buf[sz - 1] != '/') {
+            buf[sz] = '/';
+            buf[sz + 1] = '\0';
+            ++sz;
+        }
+
+        //strncpy(&buf[sz], "robots1.png", sizeof("robots1.png"));
+        //se->png = cp_load_png(buf);
+        //strncpy(&buf[sz], "robots1.ase", sizeof("robots1.ase"));
+        strncpy(&buf[sz], "invaders.ase", sizeof("invaders.ase"));
+        se->robots_ase = cute_aseprite_load_from_file(buf, NULL);
+
+        if (se->robots_ase) {
+            printf("ase:\nframes %d\n", se->robots_ase->frame_count);
+            for (int i = 0; i < se->robots_ase->frame_count; ++i) {
+                auto& frame = se->robots_ase->frames[i];
+                printf(" %d --- cels: %d %d\n", i, frame.cel_count, frame.duration_milliseconds);
+            }
+        }
+
+
+        if (se->robots_ase && se->robots_ase->frame_count > 0) {
+            int w = se->robots_ase->frame_count * se->robots_ase->w;
+            int h = se->robots_ase->h;
+
+            if (se->sprites) {
+                for (int i = 0; i < se->sprite_count; ++i) {
+                    if (se->sprites[i]) {
+                        free(se->sprites[i]->rgba);
+                        free(se->sprites[i]);
+                    }
+                }
+                free(se->sprites);
+            }
+
+            // copy the ase frame data into sprites
+            se->sprite_count = se->robots_ase->frame_count;
+            se->sprites = (Sprite**)malloc(sizeof(Sprite*) * se->robots_ase->frame_count);
+            for (int i = 0; i < se->robots_ase->frame_count; ++i) {
+                se->sprites[i] = (Sprite*)malloc(sizeof(Sprite));
+                memset(se->sprites[i], 0, sizeof(Sprite));
+                se->sprites[i]->w = se->robots_ase->frames[i].cels[0].w;
+                se->sprites[i]->h = se->robots_ase->frames[i].cels[0].h;
+                int sz = 4 * se->sprites[i]->w * se->sprites[i]->h;
+                se->sprites[i]->rgba = (uint8_t*) malloc(sz);
+                memcpy(se->sprites[i]->rgba, se->robots_ase->frames[i].cels[0].pixels, sz);
+            }
+/*
+            se->robots_sheet = sg_alloc_image();
+            sg_image_desc img_desc;
+            memset(&img_desc, 0, sizeof(img_desc));
+            img_desc.width = w;
+            img_desc.height = h;
+            img_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+            img_desc.wrap_u = SG_WRAP_REPEAT;
+            img_desc.wrap_v = SG_WRAP_REPEAT;
+            img_desc.min_filter = SG_FILTER_LINEAR;
+            img_desc.mag_filter = SG_FILTER_LINEAR;
+            img_desc.data.subimage[0][0] = {
+                data, (size_t) (img_desc.width * img_desc.height * 4)
+            };
+            sg_init_image(se->robots_sheet, &img_desc);
+*/
+        }
+
+        spritebatch_set_default_config(&se->config);
+        se->config.batch_callback = batch_report;                       // report batches of sprites from `spritebatch_flush`
+        se->config.get_pixels_callback = get_pixels;                    // used to retrieve image pixels from `spritebatch_flush` and `spritebatch_defrag`
+        se->config.generate_texture_callback = generate_texture_handle; // used to generate a texture handle from `spritebatch_flush` and `spritebatch_defrag`
+        se->config.delete_texture_callback = destroy_texture_handle;    // used to destroy a texture handle from `spritebatch_defrag`
+        spritebatch_init(&se->batch, &se->config, se);
+    }
+    return se;
+}
+
+void sprite_engine_dealloc(SpriteEngine* se)
+{
+    spritebatch_term(&se->batch);
+    cute_aseprite_free(se->robots_ase);
+    // free (se->png)
+    free(se);
+}
+
+void draw_sprite(SpriteEngine* se, float x, float y, float rot, int sprite)
+{
+    float sx = 1.f, sy = 1.f;
+    float theta_radians = 0.f;
+    int sortbits = 0;
+    spritebatch_sprite_t spr{
+        (SPRITEBATCH_U64) sprite, // image_id
+        0, // texture_id, filled in
+        se->sprites[sprite]->w, se->sprites[sprite]->h,
+        x, y,
+        sx, sy,
+        cosf(theta_radians), sinf(theta_radians),
+        0, 0, 0, 0, // internal values
+        0, // sort_bits
+        //(void*)se // userdata
+    };
+    spritebatch_push(&se->batch, spr);
+}
+
+void spriteengine_update(SpriteEngine* se)
+{
+    // Run tinyspritebatch to find sprite batches.
+    // This is the most basic usage of tinypsritebatch, one defrag, tick and flush per game loop.
+    // It is also possible to only use defrag once every N frames.
+    // tick can also be called at different time intervals (for example, once per game update
+    // but not necessarily once per screen render).
+    spritebatch_defrag(&se->batch);
+    spritebatch_tick(&se->batch);
+    spritebatch_flush(&se->batch);
+}
+
+void sprite_demo(SpriteEngine* se)
+{
+    for (float x = 0; x < 300; x += 30)
+        for (float y = 0; y < 300; y += 30)
+            draw_sprite(se, x, y, 0, 0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 static void draw_rects(void) {
     sgp_irect viewport = sgp_query_state()->viewport;
@@ -128,6 +434,7 @@ bool lab_imgui_init(const char* arg0_, const char* asset_root_)
 {
     arg0 = strdup(arg0);
     asset_root = strdup(asset_root_);
+    sprite_engine = sprite_engine_init(asset_root);
     return true;
 }
 
@@ -352,7 +659,7 @@ static void frame(void) {
 
         // top right
         sgp_viewport(hw, 0, hw, hh);
-        draw_triangles();
+//        draw_triangles();
 
         // bottom left
         sgp_viewport(0, hh, hw, hh);
@@ -364,6 +671,10 @@ static void frame(void) {
         sgp_clear();
         sgp_reset_color();
         draw_lines();
+
+        sgp_viewport(hw, 0, hw, hh);
+        sprite_demo(sprite_engine);
+        spriteengine_update(sprite_engine);
     }
 
     // sokol_gl
@@ -380,6 +691,7 @@ static void frame(void) {
         dx = sx; dy = sy;
 
         fontDemo(dx, dy, sx, sy);
+
     }
 
     simgui_frame_desc_t frame_desc{
