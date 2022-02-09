@@ -96,6 +96,7 @@ static void batch_report(spritebatch_sprite_t* sprites, int count, int texture_w
     (void)texture_w;
     (void)texture_h;
 
+#if 0
     for (int i = 0; i < count; ++i) {
         spritebatch_sprite_t* spr = &sprites[i];
 
@@ -110,6 +111,7 @@ static void batch_report(spritebatch_sprite_t* sprites, int count, int texture_w
         points_buffer[count++] = v;
         sgp_draw_lines_strip(points_buffer, count);
     }
+#endif
     for (int i = 0; i < count; ++i) {
         spritebatch_sprite_t* spr = &sprites[i];
         //sgp_set_image(0, se->bench_image);
@@ -432,7 +434,13 @@ static void draw_triangles(void) {
 extern "C"
 bool lab_imgui_init(const char* arg0_, const char* asset_root_)
 {
-    arg0 = strdup(arg0);
+    if (!asset_root_) {
+        printf("asset root not defined\n");
+        return false;
+    }
+    else
+        printf("asset root:%s\n", asset_root_);
+    arg0 = strdup(arg0_);
     asset_root = strdup(asset_root_);
     sprite_engine = sprite_engine_init(asset_root);
     return true;
@@ -663,7 +671,7 @@ static void frame(void) {
 
         // bottom left
         sgp_viewport(0, hh, hw, hh);
-        draw_points();
+        //draw_points();
 
         // bottom right
         sgp_viewport(hw, hh, hw, hh);

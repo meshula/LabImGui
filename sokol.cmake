@@ -36,10 +36,16 @@ else()
         target_include_directories(sokol SYSTEM 
             PUBLIC ${sokol_SOURCE_DIR} ${sokol_SOURCE_DIR}/util)
 
+        set_property(TARGET sokol PROPERTY CXX_STANDARD 17)
         if (IMGUI_BACKEND_OPENGL3)
             set(PLATFORM_DEFS SOKOL_GLCORE33)
         elseif (IMGUI_BACKEND_D3D11)
             set(PLATFORM_DEFS SOKOL_D3D11)
+        elseif (IMGUI_BACKEND_METAL)
+            set(PLATFORM_DEFS SOKOL_METAL)
+            set_source_files_properties(sokol.c PROPERTIES COMPILE_FLAGS "-x objective-c")
+            set_source_files_properties(sokol.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
+
         endif()
 
         #target_link_libraries(sokol imgui)

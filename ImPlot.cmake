@@ -29,6 +29,8 @@ else()
         target_include_directories(implot SYSTEM 
             PUBLIC ${implot_SOURCE_DIR})
 
+        set_property(TARGET implot PROPERTY CXX_STANDARD 17)
+
         target_link_libraries(implot PUBLIC Dear::Imgui)
 
         install(

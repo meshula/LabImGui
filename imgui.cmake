@@ -4,6 +4,8 @@
 # check for the target because if another project in the hierarchy already
 # built it, it shouldn't be build and added again.
 
+find_package(imgui QUIET)
+
 if (TARGET Dear::Imgui)
     message(STATUS "Found Dear Imgui")
 else()
@@ -39,7 +41,16 @@ else()
         option(IMGUI_BACKEND_DAWN "Dawn")
         option(IMGUI_BACKEND_WINAPI "Win32 native API")
 
+        set(imgui_PUBLIC_HEADERS
+            ${imgui_SOURCE_DIR}/imconfig.h
+            ${imgui_SOURCE_DIR}/imgui.h
+            ${imgui_SOURCE_DIR}/imgui_internal.h
+            ${imgui_SOURCE_DIR}/imstb_rectpack.h
+            ${imgui_SOURCE_DIR}/imstb_textedit.h
+            ${imgui_SOURCE_DIR}/imstb_truetype.h)
+
         add_library(imgui
+            ${imgui_PUBLIC_HEADERS}
             ${imgui_SOURCE_DIR}/imgui.cpp
             ${imgui_SOURCE_DIR}/imgui_demo.cpp
             ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -65,15 +76,16 @@ else()
             $<$<BOOL:${IMGUI_BACKEND_WINAPI}>:${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp>
         )
 
-        set_property(TARGET imgui PROPERTY CXX_STANDARD 11)
+        set_property(TARGET imgui PROPERTY CXX_STANDARD 17)
 
         target_include_directories(imgui
             PUBLIC
-                ${imgui_SOURCE_DIR}
-                ${imgui_SOURCE_DIR}/backends
-        		$<$<BOOL:${IMGUI_BACKEND_WGPU}>:${CMAKE_INSTALL_PREFIX}/include>
+                # BUILD_INTERFACE distinguishes from an INSTALL_INTERFACE
+                $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>
+                $<BUILD_INTERFACE:${imgui_SOURCE_DIR}/backends>
+            	$<BUILD_INTERFACE:$<$<BOOL:${IMGUI_BACKEND_WGPU}>:${CMAKE_INSTALL_PREFIX}/include>>
             PRIVATE 
-	            #$<$<BOOL:${IMGUI_BACKEND_DAWN}>:"${LABSLANG_DAWN_INSTALL_ROOT}/include">
+ 	            #$<$<BOOL:${IMGUI_BACKEND_DAWN}>:"${LABSLANG_DAWN_INSTALL_ROOT}/include">
 		        #$<$<BOOL:${IMGUI_BACKEND_WGPU}>:"${WEBGPU_HEADER_LOCATION}">
             )
 
@@ -123,8 +135,23 @@ else()
         )
 
         add_library(Dear::Imgui ALIAS imgui)
+
+        install(FILES ${imgui_PUBLIC_HEADERS}
+             DESTINATION "${CMAKE_INSTALL_PREFIX}/include")
+        install(FILES "${imgui_SOURCE_DIR}/LICENSE.txt"
+             DESTINATION "${CMAKE_INSTALL_PREFIX}/share/dearImgui")
+
+        install(TARGETS imgui
+            EXPORT imguiConfig
+            INCLUDES DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+            ARCHIVE DESTINATION  "${CMAKE_INSTALL_PREFIX}/lib"
+            LIBRARY DESTINATION  "${CMAKE_INSTALL_PREFIX}/lib"
+            RUNTIME DESTINATION  "${CMAKE_INSTALL_PREFIX}/bin")
+
+        install(EXPORT imguiConfig
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/share/dearImgui"
+            NAMESPACE Dear:: )
+
     endif()
 endif()
-
-
 

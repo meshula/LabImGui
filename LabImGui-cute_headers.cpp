@@ -1,4 +1,5 @@
 
+#include <limits.h>
 #define SPRITEBATCH_IMPLEMENTATION
 #include "cute_spritebatch.h"
 #define CUTE_PNG_IMPLEMENTATION

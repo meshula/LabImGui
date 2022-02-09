@@ -33,7 +33,11 @@ else()
         )
         add_library(labfont STATIC ${LABFONT_SRC} ${LABFONT_HEADERS})
         target_include_directories(labfont SYSTEM 
-            PUBLIC ${labfont_SOURCE_DIR})
+            PUBLIC
+                ${labfont_SOURCE_DIR}/src
+                ${labfont_SOURCE_DIR})
+
+        set_property(TARGET labfont PROPERTY CXX_STANDARD 17)
 
         target_link_libraries(labfont PUBLIC RapidJSON::RapidJSON sokol::sokol)
 
