@@ -1,6 +1,6 @@
 
 #include "LabImgui/FontManager.h"
-#include "imgui_impl_opengl3.h"
+//#include "imgui_impl_opengl3.h"
 #include "LabImgui/roboto_regular.ttf.h"
 #include "LabImgui/robotomono_regular.ttf.h"
 #include "LabImgui/meshula-icons.h"
@@ -62,7 +62,7 @@ ImFont* FontManager::GetFont(FontName font_name)
 
     io.Fonts->SetTexID(s_font_texture.get());*/
 
-    ImGui_ImplOpenGL3_CreateFontsTexture();
+ //   ImGui_ImplOpenGL3_CreateFontsTexture();
     return fonts[index];
 }
 

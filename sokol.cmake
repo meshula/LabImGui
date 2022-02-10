@@ -2,6 +2,9 @@
 #-------------------------------------------------------------------------------
 # sokol
 #-------------------------------------------------------------------------------
+
+find_package(sokol QUIET)
+
 if (TARGET sokol::sokol)
     message(STATUS "Found sokol")
 else()
@@ -26,6 +29,7 @@ else()
             ${sokol_SOURCE_DIR}/sokol_audio.h
             ${sokol_SOURCE_DIR}/sokol_fetch.h
             ${sokol_SOURCE_DIR}/sokol_gfx.h
+            ${sokol_SOURCE_DIR}/sokol_glue.h
             ${sokol_SOURCE_DIR}/sokol_time.h
             ${sokol_SOURCE_DIR}/util/sokol_fontstash.h
             ${sokol_SOURCE_DIR}/util/sokol_gfx_imgui.h
@@ -34,7 +38,10 @@ else()
         )
         add_library(sokol STATIC ${SOKOL_SRC} ${SOKOL_HEADERS})
         target_include_directories(sokol SYSTEM 
-            PUBLIC ${sokol_SOURCE_DIR} ${sokol_SOURCE_DIR}/util)
+            PUBLIC 
+            $<BUILD_INTERFACE:${sokol_SOURCE_DIR}>
+            $<BUILD_INTERFACE:${sokol_SOURCE_DIR}/util>
+            $<INSTALL_INTERFACE:include/sokol>)
 
         set_property(TARGET sokol PROPERTY CXX_STANDARD 17)
         if (IMGUI_BACKEND_OPENGL3)
@@ -43,8 +50,10 @@ else()
             set(PLATFORM_DEFS SOKOL_D3D11)
         elseif (IMGUI_BACKEND_METAL)
             set(PLATFORM_DEFS SOKOL_METAL)
-            set_source_files_properties(sokol.c PROPERTIES COMPILE_FLAGS "-x objective-c")
-            set_source_files_properties(sokol.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
+            set_source_files_properties(sokol.c 
+                PROPERTIES COMPILE_FLAGS "-x objective-c -fobjc-arc")
+            set_source_files_properties(sokol.cpp 
+                PROPERTIES COMPILE_FLAGS "-x objective-c++ -fobjc-arc")
 
         endif()
 
@@ -63,20 +72,26 @@ else()
         #    set(PLATFORM_LIBS ws2_32 Iphlpapi.lib opengl32.lib)
         endif()
 
-        target_link_libraries(sokol PUBLIC Dear::Imgui sokol::sokol_gp ${PLATFORM_LIBS})
+        target_link_libraries(sokol PUBLIC 
+            Dear::dearImgui sokol::sokol_gp ${PLATFORM_LIBS})
 
-        if(APPLE)
-            set_source_files_properties(src/sokol.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++ -fobjc-arc")
-        endif()
-
+        add_library(sokol::sokol ALIAS sokol)
+        
         install(
             TARGETS sokol
+            EXPORT sokolConfig
             LIBRARY DESTINATION lib
             ARCHIVE DESTINATION lib
             RUNTIME DESTINATION bin
             PUBLIC_HEADER DESTINATION include/sokol
         )
 
-        add_library(sokol::sokol ALIAS sokol)
+        install(FILES ${SOKOL_HEADERS} 
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/include/sokol")
+
+        install(EXPORT sokolConfig
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/cmake/sokol"
+            NAMESPACE sokol:: )
+
     endif()
 endif()

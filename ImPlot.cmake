@@ -1,8 +1,11 @@
 
 #-------------------------------------------------------------------------------
-# sokol
+# ImPlot
 #-------------------------------------------------------------------------------
-if (TARGET Dear::ImPlot)
+
+find_package(ImPlot QUIET)
+
+if (TARGET Dear::implot)
     message(STATUS "Found ImPlot")
 else()
     message(STATUS "Installing ImPlot")
@@ -27,20 +30,28 @@ else()
         )
         add_library(implot STATIC ${IMPLOT_SRC} ${IMPLOT_HEADERS})
         target_include_directories(implot SYSTEM 
-            PUBLIC ${implot_SOURCE_DIR})
+            PUBLIC $<BUILD_INTERFACE:${implot_SOURCE_DIR}>
+            PUBLIC $<INSTALL_INTERFACE:include/ImPlot>)
 
         set_property(TARGET implot PROPERTY CXX_STANDARD 17)
 
-        target_link_libraries(implot PUBLIC Dear::Imgui)
+        target_link_libraries(implot PUBLIC Dear::dearImgui)
+        add_library(Dear::implot ALIAS implot)
 
         install(
             TARGETS implot
+            EXPORT ImPlotConfig
             LIBRARY DESTINATION lib
             ARCHIVE DESTINATION lib
             RUNTIME DESTINATION bin
             PUBLIC_HEADER DESTINATION include/implot
         )
+    install(FILES ${IMPLOT_HEADERS} 
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/include/ImPlot")
 
-    add_library(Dear::ImPlot ALIAS implot)
+        install(EXPORT ImPlotConfig
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/cmake/ImPlot"
+            NAMESPACE Dear:: )
+
     endif()
 endif()

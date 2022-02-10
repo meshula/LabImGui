@@ -157,9 +157,9 @@ add_library(LabImgui STATIC
 set_property(TARGET LabImgui PROPERTY CXX_STANDARD 17)
 
 target_link_libraries(LabImgui 
-    Dear::Imgui 
-    Dear::ImPlot
-    cute::headers
+    Dear::dearImgui 
+    Dear::implot
+    cute::cuteheaders
     ${BACKEND_LIB})
 
 target_include_directories(LabImgui 
@@ -193,7 +193,7 @@ add_executable(LabImguiHello
 set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 
 target_link_libraries(LabImguiHello 
-    Lab::Imgui Lab::Font
+    Lab::Imgui Lab::labfont
     ${BACKEND_LIB} 
     ${LABIMGUI_RENDER_SYSTEM})
 

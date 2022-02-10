@@ -1,8 +1,11 @@
 
-#-------------------------------------------------------------------------------
-# sokol
-#-------------------------------------------------------------------------------
-if (TARGET Lab::Font)
+#----------------------------------------------------------------------
+# Lab::Font
+#----------------------------------------------------------------------
+
+find_package(labfont QUIET)
+
+if (TARGET Lab::labfont)
     message(STATUS "Found LabFont")
 else()
     include(FetchContent)
@@ -34,15 +37,16 @@ else()
         add_library(labfont STATIC ${LABFONT_SRC} ${LABFONT_HEADERS})
         target_include_directories(labfont SYSTEM 
             PUBLIC
-                ${labfont_SOURCE_DIR}/src
-                ${labfont_SOURCE_DIR})
+                $<BUILD_INTERFACE:${labfont_SOURCE_DIR}/src>
+                $<BUILD_INTERFACE:${labfont_SOURCE_DIR}>)
 
         set_property(TARGET labfont PROPERTY CXX_STANDARD 17)
 
-        target_link_libraries(labfont PUBLIC RapidJSON::RapidJSON sokol::sokol)
+        target_link_libraries(labfont PUBLIC RapidJSON::rapidjson sokol::sokol)
 
         install(
             TARGETS labfont
+            EXPORT labfontConfig
             LIBRARY DESTINATION lib
             ARCHIVE DESTINATION lib
             RUNTIME DESTINATION bin
@@ -60,7 +64,12 @@ else()
             "${labfont_SOURCE_DIR}/resources/hauer-12.font.json"
             "${labfont_SOURCE_DIR}/resources/Cousine-Regular.ttf"
             DESTINATION share/lab_font_demo)
-        add_library(Lab::Font ALIAS labfont)
+        add_library(Lab::labfont ALIAS labfont)
+
+        install(EXPORT labfontConfig
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/cmake/labFont"
+            NAMESPACE Lab:: )
+
     endif()
 endif()
 
