@@ -15,9 +15,17 @@ typedef struct
 
 typedef struct
 {
+    // these values are written by lab_imgui_window_state
     int width, height;
     int fb_width, fb_height;
     bool valid;
+
+    // these values are written by lab_imgui_new_docking_frame
+    bool canvas_hovered;       // mouse over unobscured canvas
+    bool canvas_click_started; // mouse click initiated on canvas
+    bool canvas_click_active;  // mouse held over canvas
+    bool canvas_click_ended;   // mouse released
+    float canvas_x, canvas_y;  // mouse position in canvas coordinates
 } lab_WindowState;
 
 // this must be called before OpenGL is invoked, otherwise
@@ -28,7 +36,7 @@ bool lab_imgui_init(const char* arg0, const char* asset_root);
 // create a glfw Imgui window and initialize the Imgui context
 LABIMGUI_API
 bool lab_imgui_create_window(const char* window_name, int width, int height,
-    void (*custom_frame)(void));
+    void (*render_frame)(void), void (*imgui_frame)(void));
 
 LABIMGUI_API
 void lab_imgui_window_state(const char* window_name, lab_WindowState * s);
@@ -36,7 +44,7 @@ void lab_imgui_window_state(const char* window_name, lab_WindowState * s);
 LABIMGUI_API
 void lab_imgui_shutdown();
 LABIMGUI_API
-void lab_imgui_new_docking_frame(const lab_WindowState*);
+void lab_imgui_new_docking_frame(lab_WindowState*);
 LABIMGUI_API
 lab_FullScreenMouseState lab_imgui_begin_fullscreen_docking(const lab_WindowState*);
 LABIMGUI_API

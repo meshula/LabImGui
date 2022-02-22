@@ -21,7 +21,7 @@ else()
 
         add_library(rapidjson INTERFACE)
         target_include_directories(rapidjson INTERFACE
-            $<BUILD_INTERFACE:${rapidjson_SOURCE_DIR}/include>)
+            $<BUILD_INTERFACE:"${rapidjson_SOURCE_DIR}/include">)
 
     file(GLOB rapidjson_headers "${rapidjson_SOURCE_DIR}/include/rapidjson/*.h")
     file(GLOB rapidjson_error_headers "${rapidjson_SOURCE_DIR}/include/rapidjson/error/*.h")

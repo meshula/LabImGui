@@ -7,6 +7,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # make submodules respect CMP0077
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+set(BUILD_USD ON)
+
 if (APPLE)
     #set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
     #set(LABAPP_BACKEND "mac-wgpu-glfw" CACHE STRING "Backend")
@@ -102,6 +104,10 @@ endif()
 
 if (IMGUI_BACKEND_DAWN)
     include(LabSlang.cmake)
+endif()
+
+if (BUILD_USD)
+    include(usd.cmake)
 endif()
 
 include(imgui.cmake)
@@ -206,4 +212,57 @@ install(FILES
     "resources/robots1.ase"
     "resources/invaders.ase"
     DESTINATION share/lab_font_demo)
+
+
+
+
+
+
+function(pxr_whole libs result)
+    set(final "")
+    foreach(lib ${libs})
+        if(MSVC)
+            list(APPEND final -WHOLEARCHIVE:$<TARGET_FILE:${lib}>)
+            list(APPEND final ${lib})
+        elseif(CMAKE_COMPILER_IS_GNUCXX)
+            list(APPEND final -Wl,--whole-archive ${lib} -Wl,--no-whole-archive)
+        elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+            list(APPEND final -Wl,-force_load ${CMAKE_BINARY_DIR}/lib${lib}.a)
+        else()
+            # Unknown platform.
+            list(APPEND final ${lib})
+        endif()
+    endforeach()
+    set(${result} ${final} PARENT_SCOPE)
+endfunction()
+
+
+set(usd_libs
+    arch gf js plug tf trace vt ar work kind ndr pcp
+    sdf sdr usd usdGeom usdHydra usdLux usdMedia usdPhysics
+    usdRi usdShade usdSkel usdUI usdUtils usdVol)
+set(usd_libs_resolved "")
+pxr_whole("${usd_libs}" usd_libs_resolved)
+
+message(STATUS "${usd_libs_resolved}")
+
+add_executable(LabUsd
+    LabUsd.cpp
+    LabDirectories.h
+    LabDirectories.cpp)
+
+set_property(TARGET LabUsd PROPERTY CXX_STANDARD 17)
+
+target_include_directories(LabUsd SYSTEM PUBLIC ${CMAKE_BINARY_DIR}/include)
+
+target_link_libraries(LabUsd
+    ${CMAKE_BINARY_DIR}/libtbb.dylib
+    Lab::Imgui Lab::labfont ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
+    ${usd_libs_resolved})
+
+install(TARGETS LabUsd
+    BUNDLE DESTINATION bin
+    RUNTIME DESTINATION bin)
+
+
 
