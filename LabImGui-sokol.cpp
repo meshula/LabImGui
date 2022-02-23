@@ -543,11 +543,9 @@ void lab_imgui_new_docking_frame(lab_WindowState* ws)
     {
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
         //ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), dockspace_flags);
-
-
+        
         static auto first_time = true;
-        if (first_time)
-        {
+        if (ImGui::DockBuilderGetNode(dockspace_id) == nullptr || first_time) {
             first_time = false;
 
             // clear any previous layout
