@@ -11,7 +11,7 @@ else()
     include(FetchContent)
     FetchContent_Declare(labfont
         GIT_REPOSITORY "https://github.com/meshula/LabFont.git"
-        GIT_TAG "main"
+        GIT_TAG "labimgui-compat"
         GIT_SHALLOW ON)
 
     FetchContent_GetProperties(labfont)
