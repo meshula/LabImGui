@@ -10,9 +10,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(BUILD_USD ON)
 
 if (APPLE)
-    #set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
+    set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
     #set(LABAPP_BACKEND "mac-wgpu-glfw" CACHE STRING "Backend")
-    set(LABAPP_BACKEND "mac-metal-sokol" CACHE STRING "Backend")
+    #set(LABAPP_BACKEND "mac-metal-sokol" CACHE STRING "Backend")
 elseif (WIN32)
     #set(LABAPP_BACKEND "win-wgpu-glfw" CACHE STRING "Backend")
     #set(LABAPP_BACKEND "win-gl-glfw" CACHE STRING "Backend")
@@ -112,13 +112,13 @@ endif()
 
 include(imgui.cmake)
 include(ImPlot.cmake)
+include(LabFont.cmake)
+include(cute_headers.cmake)
+include(rapidjson.cmake)
 
 if (IMGUI_BACKEND_SOKOL)
     include(sokol_gp.cmake)
     include(sokol.cmake)
-    include(rapidjson.cmake)
-    include(LabFont.cmake)
-    include(cute_headers.cmake)
     set(BACKEND_LIB sokol::sokol)
     set(PLATFORM_SRC
         LabImGui-cute_headers.c
@@ -132,8 +132,11 @@ if (IMGUI_BACKEND_OPENGL3 AND IMGUI_BACKEND_GLFW)
         GL/gl3w.c)
     set(BACKEND_LIB glfw)
 endif()
+
 if (IMGUI_BACKEND_METAL AND IMGUI_BACKEND_OSX)
     set(PLATFORM_SRC
+        LabImGui-cute_headers.c
+        LabImGui-cute_headers.cpp
         LabImGui-metal-cocoa.mm)
 endif()
 if (IMGUI_BACKEND_WGPU)

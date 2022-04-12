@@ -41,7 +41,7 @@ static uint64_t last_time = 0;
 static bool show_test_window = true;
 static bool show_another_window = false;
 static wgpu::BackendType _backendType = wgpu::BackendType::Null;
-static dawn_native::Adapter chosenAdapter;:w
+static dawn_native::Adapter chosenAdapter;
 
 static std::unique_ptr<dawn_native::Instance> instance;
 static wgpu::Device device;

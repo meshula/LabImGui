@@ -11,7 +11,9 @@
 
 #include "LabImgui/LabImGui.h"
 
-static void(*_frame)() = nullptr;
+static void(*imgui_cb)(void) = nullptr;
+static void(*render_cb)(void) = nullptr;
+
 float highDPIscaleFactor = 1.f;
 
 typedef struct { float x, y, z, w; } v4f;
@@ -141,6 +143,11 @@ v4f clear_color = { 0, 0, 0, 1 };
 		return;
     }
 
+    if (render_cb)
+    {
+        render_cb();
+    }
+ 
     // Start the Dear ImGui frame
     ImGui_ImplMetal_NewFrame(renderPassDescriptor);
 #if TARGET_OS_OSX
@@ -148,10 +155,8 @@ v4f clear_color = { 0, 0, 0, 1 };
 #endif
     ImGui::NewFrame();
 
-    if (_frame)
-    {
-        _frame();
-    }
+   if (imgui_cb)
+        imgui_cb();
     else
     {
         // Our state (make them static = more or less global) as a convenience to keep the example terse.
@@ -349,11 +354,13 @@ bool lab_imgui_init()
 }
 
 extern "C"
-bool lab_imgui_create_window(const char* window_name, int width, int height, void(*frame)())
+bool lab_imgui_create_window(const char* window_name, int width, int height, 
+    void(*render_frame)(), void (*imgui_frame)(void))
 {
     static AppDelegate* del = [AppDelegate new];
     [del applicationDidFinishLaunching:[NSNotification notificationWithName:@"startup" object:nil]];
-    _frame = frame;
+    render_cb = render_frame;
+    imgui_cb = imgui_frame;
 #if TARGET_OS_OSX
     auto app = NSApp;
     app.delegate = del;
