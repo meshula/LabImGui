@@ -9,9 +9,12 @@
 # USD
 #-------------------------------------------------------------------------------
 
-find_package(pxrusd)
+find_package(pxr REQUIRED)
+if (${PXR_VERSION} VERSION_GREATER_EQUAL "2208")
+    find_package(MaterialX)
+endif()
 
-if (TARGET pxrusd::usd)
+if (TARGET pxr::usd)
     # assume the existance of pxrusd::usd means all the packages exist
     message(STATUS "Found usd")
 else()
@@ -496,7 +499,6 @@ else()
         install(EXPORT pxrusdConfig
             DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/cmake/pxrusd"
             NAMESPACE pxrusd:: )
-
 
     endif()
 endif()

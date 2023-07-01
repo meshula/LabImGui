@@ -8,10 +8,10 @@ It's the minimal amount of visible API to pull it off.
 Note that until Dear ImGui supports multiple windows on Linux, the multiple
 window support on this project is not implemented.
 
-Windows | GL                 | WebGPU/native |
-------- | ------------------ | ------------- |
-GLFW    | :white_check_mark: | :hourglass:   |
-Sokol   | :white_check_mark: | :hourglass:   |
+Windows | GL                 |
+------- | ------------------ |
+GLFW    | :white_check_mark: |
+Sokol   | :white_check_mark: |
 
 Mac     | GL                 | Metal              | WebGPU/native    |
 ------- | ------------------ | ------------------ | ---------------- |
@@ -24,14 +24,9 @@ iOS     | Metal              | WebGPU/native    |
 Sokol   | :hourglass:        | :jack_o_lantern: |
 Cocoa   | :construction:     | :hourglass:      |
 
-WASM    | WebGPU             |
-------- | ------------------ |
-Sokol   | :hourglass:        |
-
 Linux   | GL                 | Vulkan           |
 ------- | ------------------ | ---------------- |
 GLFW    | :construction:     | :hourglass:      |
-Sokol   | :construction:     | :jack_o_lantern: |
 
 
 ```cpp

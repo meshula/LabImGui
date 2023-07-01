@@ -9,15 +9,50 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(BUILD_USD ON)
 
-if (APPLE)
-    set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
-    #set(LABAPP_BACKEND "mac-wgpu-glfw" CACHE STRING "Backend")
-    #set(LABAPP_BACKEND "mac-metal-sokol" CACHE STRING "Backend")
-elseif (WIN32)
-    #set(LABAPP_BACKEND "win-wgpu-glfw" CACHE STRING "Backend")
-    #set(LABAPP_BACKEND "win-gl-glfw" CACHE STRING "Backend")
-    set(LABAPP_BACKEND "win-d3d11-sokol" CACHE STRING "Backend")
-    #set(LABAPP_BACKEND "win-gl-sokol" CACHE STRING "Backend")
+# if LABAPP_BACKEND is not set, deduce it from the platform
+if (NOT DEFINED LABAPP_BACKEND)
+    # construct the variable as a string, platform-graphicssystem-windowingsystem
+    # check LABAPP_GRAPHICS_SYSTEM, and LABAPP_WINDOWING_SYSTEM, use them if
+    # they are set, and otherwise use the default for the platform
+
+    if (APPLE)
+        # construct a temporary string string starting with mac-
+        set(BACKEND "mac-")
+        # if LABAPP_GRAPHICS_SYSTEM is set, append it
+        if (DEFINED LABAPP_GRAPHICS_SYSTEM)
+            set(BACKEND "${BACKEND}${LABAPP_GRAPHICS_SYSTEM}-")
+        else()
+            # otherwise, use the default for the platform
+            set(BACKEND "${BACKEND}metal-")
+        endif()
+        # if LABAPP_WINDOWING_SYSTEM is set, append it
+        if (DEFINED LABAPP_WINDOWING_SYSTEM)
+            set(BACKEND "${BACKEND}${LABAPP_WINDOWING_SYSTEM}")
+        else()
+            # otherwise, use the default for the platform
+            set(BACKEND "${BACKEND}cocoa")
+        endif()
+        set(LABAPP_BACKEND ${BACKEND} CACHE STRING "Backend")
+    elseif (WIN32)
+        # construct a temporary string string starting with win-
+        set(BACKEND "win-")
+        # if LABAPP_GRAPHICS_SYSTEM is set, append it
+        if (DEFINED LABAPP_GRAPHICS_SYSTEM)
+            set(BACKEND "${BACKEND}${LABAPP_GRAPHICS_SYSTEM}-")
+        else()
+            # otherwise, use the default for the platform
+            set(BACKEND "${BACKEND}d3d11-")
+        endif()
+        # if LABAPP_WINDOWING_SYSTEM is set, append it
+        if (DEFINED LABAPP_WINDOWING_SYSTEM)
+            set(BACKEND "${BACKEND}${LABAPP_WINDOWING_SYSTEM}")
+        else()
+            # otherwise, use the default for the platform
+            set(BACKEND "${BACKEND}glfw")
+        endif()
+    else()
+        message(FATAL_ERROR "Unknown platform")
+    endif()
 endif()
 
 if("${LABAPP_BACKEND}" STREQUAL "win-wgpu-glfw")
@@ -60,7 +95,7 @@ elseif("${LABAPP_BACKEND}" STREQUAL "win-d3d11-sokol")
     set(IMGUI_BACKEND_SOKOL ON)
     set(IMGUI_BACKEND_WGPU OFF)
     set(IMGUI_BACKEND_WINAPI OFF) 
-elseif("${LABAPP_BACKEND}" STREQUAL "mac-metal-foundation")
+elseif("${LABAPP_BACKEND}" STREQUAL "mac-metal-cocoa")
     set(IMGUI_BACKEND_D3D11 OFF)
     set(IMGUI_BACKEND_DAWN OFF)
     set(IMGUI_BACKEND_GLFW OFF)
@@ -256,12 +291,19 @@ add_executable(LabUsd
 
 set_property(TARGET LabUsd PROPERTY CXX_STANDARD 17)
 
-target_include_directories(LabUsd SYSTEM PUBLIC ${CMAKE_BINARY_DIR}/include)
+target_include_directories(LabUsd SYSTEM PUBLIC 
+    ${PXR_INCLUDE_DIRS}
+    ${CMAKE_BINARY_DIR}/include)
 
 target_link_libraries(LabUsd
     ${CMAKE_BINARY_DIR}/libtbb.dylib
     Lab::Imgui Lab::labfont ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
     ${usd_libs_resolved})
+
+# Remove warnings coming from usd and enable default multithreaded compilation on windows
+target_compile_options(LabUsd PRIVATE
+$<$<CXX_COMPILER_ID:MSVC>:/MP /wd4244 /wd4305 /wd4996>
+$<$<CXX_COMPILER_ID:GNU>:-Wno-deprecated>)
 
 install(TARGETS LabUsd
     BUNDLE DESTINATION bin
