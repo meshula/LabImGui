@@ -1,5 +1,6 @@
 build/
 build_mac_metal/
+install_mac_metal/
 .cache/
 .vscode/
 *~

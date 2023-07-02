@@ -29,9 +29,11 @@
 
 #include "stf.hpp"
 
+#define IMGUI_DEFINE_MATH_OPERATORS 1
 #include "LabImgui/LabImGui.h"
 #include "LabDirectories.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "implot.h"
 
 
@@ -56,6 +58,18 @@ using std::string;
 using std::vector;
 
 const float PI = 3.14159265358979323846264338327f;
+
+PXR_NAMESPACE_OPEN_SCOPE
+
+/// Sets the paths to the bootstrap plugInfo JSON files, also any diagnostic
+/// messages that should be reported when plugins are registered (if any).
+/// The priority order of elements of the path is honored if pathsAreOrdered.
+/// Defined in registry.cpp.
+void Plug_SetPaths(const std::vector<std::string>&,
+                   const std::vector<std::string>&,
+                   bool pathsAreOrdered);
+
+PXR_NAMESPACE_CLOSE_SCOPE
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -260,7 +274,7 @@ void usd_statistics(usd_traverse_t & traverse, usd_statistics_t & stats)
             stats.meshes.insert(i);
             UsdGeomMesh geom(i);
             geom.GetFaceVertexCountsAttr().Get(&face_vert_counts, 0);
-            stats.data[i].face_count = face_vert_counts.size();
+            stats.data[i].face_count = (int) face_vert_counts.size();
         }
         else if (i.IsA<UsdGeomCurves>()) { stats.curves.insert(i); }
         else if (i.IsA<UsdGeomCube>()) { stats.cubes.insert(i); }
@@ -275,23 +289,45 @@ void usd_statistics(usd_traverse_t & traverse, usd_statistics_t & stats)
     printf("usd_statistics end\n");
 }
 
-void render_slice(
-        float x, float y, 
-        float inner, float outer, 
-        float a0, float a1,
-        float r, float g, float b, float a)
-{
-    float step = 2.f * PI / 72.f; // 5 degree steps
-    sgl_begin_triangle_strip();
-    for (float th = a0; th <= a1 + step * 0.5f; th += step) {
-        float innerx = x + inner * cosf(th);
-        float innery = y + inner * sinf(th);
-        float outerx = x + outer * cosf(th);
-        float outery = y + outer * sinf(th);
-        sgl_v2f_c4f(innerx, innery, r, g, b, a);
-        sgl_v2f_c4f(outerx, outery, r, g, b, a);
-    }
-    sgl_end();
+/*
+ // render as a triangle strip
+ void render_slice(
+         float x, float y,
+         float inner, float outer,
+         float a0, float a1,
+         float r, float g, float b, float a)
+ {
+     float step = 2.f * PI / 72.f; // 5 degree steps
+     sgl_begin_triangle_strip();
+     for (float th = a0; th <= a1 + step * 0.5f; th += step) {
+         float innerx = x + inner * cosf(th);
+         float innery = y + inner * sinf(th);
+         float outerx = x + outer * cosf(th);
+         float outery = y + outer * sinf(th);
+         sgl_v2f_c4f(innerx, innery, r, g, b, a);
+         sgl_v2f_c4f(outerx, outery, r, g, b, a);
+     }
+     sgl_end();
+ }
+
+ */
+
+void RenderRingSlice(ImDrawList& DrawList,
+                     const ImVec2& center, 
+                     double inner_radius, double radius, 
+                     double a0, double a1, ImU32 col) {
+    static const float resolution = 50 / (2 * IM_PI);
+    int n = ImMax(3, (int)((a1 - a0) * resolution));
+    DrawList.PathClear();
+    DrawList.PathArcTo(center, radius, a0, a1, n);
+    DrawList.PathArcTo(center, inner_radius, a1, a0, n);
+
+    // calculate the first point of the first arc:
+    ImVec2 p0 = center + ImVec2(cosf(a0) * float(radius), sinf(a0) * float(radius));
+    DrawList.PathLineTo(p0);
+    //DrawList.PathFillConvex(col); // imgui doesn't fill concave
+    //DrawList.PathStroke(IM_COL32(255, 255, 0, 255));
+    DrawList.PathStroke(col);
 }
 
 float lerp(float x0, float x1, float u) {
@@ -308,17 +344,19 @@ struct RenderSlice {
 vector<RenderSlice> slices;
 bool create_slices = true;
 
-void thrognar_render(
+void RenderRadialChart(
         int depth,
         UsdPrim root, usd_statistics_t& stats, 
         float x, float y,
         float a0, float a1, float r0, float r1)
 {
+    auto dl = ImGui::GetWindowDrawList();
     if (!create_slices) {
         for (auto& i : slices) {
             float r0 = (float) i.level * 20;
             float r1 = r0 + 19;
-            render_slice(x, y, r0, r1, i.a0, i.a1, i.r, i.g, i.b, i.a);
+            RenderRingSlice(*dl, ImVec2(x, y), r0, r1, i.a0, i.a1, 
+                            IM_COL32((int)(i.r * 255.f), (int)(i.g * 255.f), (int)(i.b * 255.f), (int)(i.a * 255.f)));
         }
         return;
     }
@@ -339,15 +377,15 @@ void thrognar_render(
         float a3 = a2 + lerp(a0, a1, ratio) - a0;
         auto c = tinycolormap::GetCubehelixColor(ratio);
         if (a3 - a2 > 1e-2f) {
-            render_slice(x, y, r0, r1, a2, a3,
-                         c.r(), c.g(), c.b(), 1.f);
+            RenderRingSlice(*dl, ImVec2(x, y), r0, r1, a2, a3, 
+                            IM_COL32((int)(c.r() * 255.f), (int)(c.g() * 255.f), (int)(c.b() * 255.f), 255));
             if (create_slices) {
                 slices.push_back((RenderSlice)
                         {*i, depth, a2, a3, 
                         (float) c.r(), (float) c.g(), (float) c.b(), 1.f});
             }
         }
-        thrognar_render(depth + 1, *i, stats, x, y, a2, a3, r1 + 1, r1 + 20);
+        RenderRadialChart(depth + 1, *i, stats, x, y, a2, a3, r1 + 1, r1 + 20);
         a2 = a3;
     }
 }
@@ -374,20 +412,7 @@ void thrognar_print(UsdPrim root, usd_statistics_t& stats, int indent) {
 
 void render_frame()
 {
-    lab_WindowState ws;
-    lab_imgui_window_state("Hello LabImGui", &ws);
-    if (!ws.valid)
-        return;
 
-    sgl_load_default_pipeline();
-    sgl_viewport(0, 0, ws.width, ws.height, true);
-    sgl_scissor_rect(0,0, ws.width, ws.height, true);
-
-    float hw = 0.5f * ws.width;
-    float hh = 0.5f * ws.height;
-
-    thrognar_render(0, g_root, g_stats, hw, hh, 0, 2.f * PI, 0, 10); 
-    create_slices = false;
 }
 
 
@@ -501,6 +526,18 @@ void imgui_frame()
 
    ImGui::End();
 
+    {
+        lab_WindowState ws;
+        lab_imgui_window_state("Radial Chart", &ws);
+        if (!ws.valid)
+            return;
+        
+        float hw = 0.5f * ws.width;
+        float hh = 0.5f * ws.height;
+        
+        RenderRadialChart(0, g_root, g_stats, hw, hh, 0, 2.f * PI, 0, 10);
+        create_slices = false;
+    }
 
     //static bool demo_window = false;
     //ImPlot::ShowDemoWindow(&demo_window);
@@ -510,12 +547,19 @@ void imgui_frame()
     lab_imgui_end_fullscreen_docking(&ws);
 }
 
+#define INSTALL_LOCN "/var/tmp/usddev0621"
+
 int main(int argc, char** argv)
 {
-    auto& registry = PlugRegistry::GetInstance();
-    registry.RegisterPlugins("/Users/nporcino/dev/LabImgui/build/usd");
-
     //Plug_InitConfig();
+    std::vector<std::string> test;
+    std::vector<std::string> paths;
+    paths.emplace_back(INSTALL_LOCN "/lib/usd");
+    paths.emplace_back(INSTALL_LOCN "/plugin/usd");
+    std::vector<std::string> msgs;
+    msgs.emplace_back("looking for plugs here: " INSTALL_LOCN "/lib/usd");
+    Plug_SetPaths(paths, msgs, true);
+
     SceneProxy scene;
     scene.create_new_stage("/var/tmp/test.usda");
     scene.save_stage();

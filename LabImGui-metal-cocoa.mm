@@ -454,8 +454,8 @@ void lab_imgui_new_docking_frame(const lab_WindowState* ws)
     ImGui::SetNextWindowViewport(viewport->ID);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    //window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    //window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
 
     // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background and handle the pass-thru hole, so we ask Begin() to not render a background.
@@ -518,8 +518,8 @@ lab_FullScreenMouseState lab_imgui_begin_fullscreen_docking(const lab_WindowStat
     ImGui::SetNextWindowSize({ w, h });
     static bool begin_flag = false;
     ImGui::Begin("###FULLSCREEN", &begin_flag,
-        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBackground |
-        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        /* ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize |*/ ImGuiWindowFlags_NoBackground
+        /*| ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus*/);
 
     ImGui::SetCursorScreenPos(ImVec2{ 0, 0 });
     ImGui::InvisibleButton("####FULL_SCREEN", { w, h });

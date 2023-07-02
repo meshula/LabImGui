@@ -7,10 +7,9 @@
 find_package(dearImgui QUIET)
 
 if (TARGET Dear::dearImgui)
-    message(STATUS "Found Dear Imgui")
+    message(STATUS "Found Dear Imgui at ${dearImgui_DIR}")
 else()
     message(STATUS "Installing Dear Imgui")
-
     include(FetchContent)
     FetchContent_Declare(dearImgui
         GIT_REPOSITORY "https://github.com/ocornut/imgui.git"
@@ -47,8 +46,26 @@ else()
             ${dearimgui_SOURCE_DIR}/imgui_internal.h
             ${dearimgui_SOURCE_DIR}/imstb_rectpack.h
             ${dearimgui_SOURCE_DIR}/imstb_textedit.h
-            ${dearimgui_SOURCE_DIR}/imstb_truetype.h)
-
+            ${dearimgui_SOURCE_DIR}/imstb_truetype.h
+            $<$<BOOL:${IMGUI_BACKEND_ALLEGRO5}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_allegro5.h>
+            $<$<BOOL:${IMGUI_BACKEND_ANDROID}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_android.h>
+            $<$<BOOL:${IMGUI_BACKEND_DX9}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_dx9.h>
+            $<$<BOOL:${IMGUI_BACKEND_DX10}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_dx10.h>
+            $<$<BOOL:${IMGUI_BACKEND_DX11}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_dx11.h>
+            $<$<BOOL:${IMGUI_BACKEND_DX12}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_dx12.h>
+            $<$<BOOL:${IMGUI_BACKEND_GLFW}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_glfw.h>
+            $<$<BOOL:${IMGUI_BACKEND_GLUT}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_glut.h>
+            $<$<BOOL:${IMGUI_BACKEND_MARMALADE}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_marmalade.h>
+            $<$<BOOL:${IMGUI_BACKEND_METAL}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_metal.h>
+            $<$<BOOL:${IMGUI_BACKEND_OPENGL2}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_opengl2.h>
+            $<$<BOOL:${IMGUI_BACKEND_OPENGL3}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h>
+            $<$<BOOL:${IMGUI_BACKEND_OSX}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_osx.h>
+            $<$<BOOL:${IMGUI_BACKEND_SDL}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_sdl.h>
+            $<$<BOOL:${IMGUI_BACKEND_SDL_RENDERER}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer.h>
+            $<$<BOOL:${IMGUI_BACKEND_VULKAN}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_vulkan.h>
+            $<$<BOOL:${IMGUI_BACKEND_WGPU}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_wgpu.h>
+            $<$<BOOL:${IMGUI_BACKEND_WINAPI}>:${dearimgui_SOURCE_DIR}/backends/imgui_impl_win32.h>
+        )
         add_library(dearImgui
             ${dearimgui_PUBLIC_HEADERS}
             ${dearimgui_SOURCE_DIR}/imgui.cpp
@@ -88,6 +105,8 @@ else()
  	            #$<$<BOOL:${IMGUI_BACKEND_DAWN}>:"${LABSLANG_DAWN_INSTALL_ROOT}/include">
 		        #$<$<BOOL:${IMGUI_BACKEND_WGPU}>:"${WEBGPU_HEADER_LOCATION}">
             )
+
+        message(STATUS "\n\n_______\nsource dir is ${dearimgui_SOURCE_DIR}\n_______\n\n")
 
         #target_compile_definitions(dearImgui PUBLIC
         #    ImDrawIdx=ImU32

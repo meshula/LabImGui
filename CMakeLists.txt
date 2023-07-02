@@ -209,8 +209,11 @@ target_link_libraries(LabImgui
 target_include_directories(LabImgui 
     PUBLIC 
         ${LABIMGUI_ROOT} 
-        ${imgui_SOURCE_DIR} 
+        ${dearimgui_SOURCE_DIR} 
+        ${dearimgui_SOURCE_DIR}/backends
         ${glfw_SOURCE_DIR})
+
+message(STATUS "\n\nLabImgui include directories: ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${glfw_SOURCE_DIR}\n\n\n")
 
 install(TARGETS LabImgui
     ARCHIVE   DESTINATION lib
@@ -263,7 +266,7 @@ function(pxr_whole libs result)
         elseif(CMAKE_COMPILER_IS_GNUCXX)
             list(APPEND final -Wl,--whole-archive ${lib} -Wl,--no-whole-archive)
         elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-            list(APPEND final -Wl,-force_load ${CMAKE_BINARY_DIR}/lib${lib}.a)
+            list(APPEND final -Wl,-force_load ${pxr_DIR}/lib/libusd_${lib}.dylib)
         else()
             # Unknown platform.
             list(APPEND final ${lib})
@@ -274,13 +277,18 @@ endfunction()
 
 
 set(usd_libs
-    arch gf js plug tf trace vt ar work kind ndr pcp
-    sdf sdr usd usdGeom usdHydra usdLux usdMedia usdPhysics
-    usdRi usdShade usdSkel usdUI usdUtils usdVol)
+    arch tf gf js trace work plug vt ar kind sdf ndr sdr pcp 
+    usd usdGeom usdVol usdMedia usdShade usdLux usdProc usdRender usdHydra
+    usdRi usdSkel usdUI usdUtils usdPhysics usdMtlx
+    garch hf hio cameraUtil pxOsd geomUtil glf hgi hgiGL hgiMetal hgiInterop
+    hd hdar hdGp hdsi hdMtlx hdSt hdx usdImaging usdImagingGL usdProcImaging
+    usdRiImaging usdSkelImaging usdVolImaging usdAppUtils usdBakeMtlx)
+
 set(usd_libs_resolved "")
 pxr_whole("${usd_libs}" usd_libs_resolved)
 
-message(STATUS "${usd_libs_resolved}")
+message(STATUS "Resolved USD libraries: \n${usd_libs_resolved}")
+message(STATUS "USD libraries: \n${PXR_LIBRARIES}")
 
 add_executable(LabUsd
     LabUsd.cpp
@@ -289,17 +297,27 @@ add_executable(LabUsd
 
 set_property(TARGET LabUsd PROPERTY CXX_STANDARD 17)
 
+message(STATUS "adding rpath ${pxr_DIR}/lib to LabUsd")
+set_target_properties(LabUsd PROPERTIES
+    XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "${pxr_DIR}/lib")
+
 target_include_directories(LabUsd SYSTEM PUBLIC 
     ${PXR_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}/include)
 
 target_link_libraries(LabUsd
-    libtbb.dylib
+    #libtbb.dylib
     Lab::Imgui 
     #Lab::labfont 
     ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
-    ${PXR_LIBRARIES})
-    #${usd_libs_resolved})
+    #${PXR_LIBRARIES}
+    #${usd_libs}
+    ${usd_libs_resolved}
+)
+
+target_compile_definitions(LabUsd PUBLIC
+    ${PXR_DEFINITIONS}
+    BOOST_NO_CXX98_FUNCTION_BASE)
 
 # Remove warnings coming from usd and enable default multithreaded compilation on windows
 target_compile_options(LabUsd PRIVATE
