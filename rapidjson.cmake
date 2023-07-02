@@ -2,58 +2,31 @@
 #-----------------------------------------------------------------------
 # rapidJSON
 #-----------------------------------------------------------------------
-
+include(ExternalProject)
 find_package(rapidjson QUIET)
 
-if (TARGET RapidJSON::rapidjson)
+if (TARGET rapidjson)
     message(STATUS "Found RapidJSON")
 else()
     message(STATUS "Installing RapidJSON")
-
-    include(FetchContent)
-    FetchContent_Declare(rapidjson
-        GIT_REPOSITORY "https://github.com/TenCent/rapidjson.git"
-        GIT_SHALLOW ON)
-
-    FetchContent_GetProperties(rapidjson)
-    if (NOT rapidjson_POPULATED)
-        FetchContent_Populate(rapidjson)
-
-        add_library(rapidjson INTERFACE)
-        target_include_directories(rapidjson INTERFACE
-            $<BUILD_INTERFACE:"${rapidjson_SOURCE_DIR}/include">)
-
-    file(GLOB rapidjson_headers "${rapidjson_SOURCE_DIR}/include/rapidjson/*.h")
-    file(GLOB rapidjson_error_headers "${rapidjson_SOURCE_DIR}/include/rapidjson/error/*.h")
-    file(GLOB rapidjson_internal_headers "${rapidjson_SOURCE_DIR}/include/rapidjson/internal/*.h")
-    file(GLOB rapidjson_msint_headers "${rapidjson_SOURCE_DIR}/include/rapidjson/msinttypes/*.h")
-    add_library(RapidJSON::rapidjson ALIAS rapidjson)
-
-    install(
-        TARGETS rapidjson
-        EXPORT rapidjsonConfig
-        PUBLIC_HEADER DESTINATION include/rapidjson)
-
-    install(FILES 
-        ${rapidjson_headers} 
-        DESTINATION include/rapidjson)
-
-    install(FILES 
-        ${rapidjson_error_headers} 
-        DESTINATION include/rapidjson/error)
-
-     install(FILES 
-        ${rapidjson_internal_headers} 
-        DESTINATION include/rapidjson/internal)
-
-   install(FILES 
-        ${rapidjson_msint_headers} 
-        DESTINATION include/rapidjson/msinttypes)
-
-    install(EXPORT rapidjsonConfig
-        DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/cmake/rapidjson"
-        NAMESPACE RapidJSON:: )
-
-    endif()
+    ExternalProject_Add(
+        rapidjson
+        PREFIX "vendor/rapidjson"
+        GIT_REPOSITORY "https://github.com/Tencent/rapidjson.git"
+        #GIT_TAG f54b0e47a08782a6131cc3d60f94d038fa6e0a51
+        GIT_SHALLOW ON
+        TIMEOUT 10
+        CMAKE_ARGS
+            -DRAPIDJSON_BUILD_TESTS=OFF
+            -DRAPIDJSON_BUILD_DOC=OFF
+            -DRAPIDJSON_BUILD_EXAMPLES=OFF
+        CONFIGURE_COMMAND ""
+        BUILD_COMMAND ""
+        INSTALL_COMMAND ""
+        UPDATE_COMMAND ""
+    )
+    #add_library(RapidJSON::rapidjson ALIAS rapidjson)
+    #ExternalProject_Get_Property(rapidjson source_dir)
+    #set(RAPIDJSON_INCLUDE_DIR ${source_dir}/include)
 endif()
 

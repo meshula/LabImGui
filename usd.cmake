@@ -9,13 +9,14 @@
 # USD
 #-------------------------------------------------------------------------------
 
+# note, REQUIRED means the custom build below is never going to be active
 find_package(pxr REQUIRED)
 if (${PXR_VERSION} VERSION_GREATER_EQUAL "2208")
     find_package(MaterialX)
 endif()
 
-if (TARGET pxr::usd)
-    # assume the existance of pxrusd::usd means all the packages exist
+# check for the usdSkel target as a proxy for the whole USD package
+if (TARGET usdSkel)
     message(STATUS "Found usd")
 else()
     message(STATUS "Installing usd")

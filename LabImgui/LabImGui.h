@@ -44,7 +44,7 @@ void lab_imgui_window_state(const char* window_name, lab_WindowState * s);
 LABIMGUI_API
 void lab_imgui_shutdown();
 LABIMGUI_API
-void lab_imgui_new_docking_frame(lab_WindowState*);
+void lab_imgui_new_docking_frame(const lab_WindowState*);
 LABIMGUI_API
 lab_FullScreenMouseState lab_imgui_begin_fullscreen_docking(const lab_WindowState*);
 LABIMGUI_API

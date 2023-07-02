@@ -34,14 +34,6 @@
 #include "imgui.h"
 #include "implot.h"
 
-#include "sokol_app.h"
-#include "sokol_gfx.h"
-#include "sokol_time.h"
-#include "sokol_glue.h"
-#include "sokol_gl.h"
-#include "sokol_gp.h"
-#include "sokol_imgui.h"
-#include "imgui_internal.h"
 
 #include "cute_aseprite.h"
 #include "cute_png.h"

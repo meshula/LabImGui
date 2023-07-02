@@ -161,7 +161,7 @@ struct Layout
             else
             {
                 MayBeNextLayout->CurrentDatas.push_back(Data);
-                NextLayout = move(MayBeNextLayout);
+                NextLayout = std::move(MayBeNextLayout);
                 return NextLayout.get();
             }
         }

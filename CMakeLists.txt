@@ -147,7 +147,7 @@ endif()
 
 include(imgui.cmake)
 include(ImPlot.cmake)
-include(LabFont.cmake)
+#include(LabFont.cmake)
 include(cute_headers.cmake)
 include(rapidjson.cmake)
 
@@ -237,7 +237,8 @@ add_executable(LabImguiHello
 set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 
 target_link_libraries(LabImguiHello 
-    Lab::Imgui Lab::labfont
+    Lab::Imgui 
+    #Lab::labfont
     ${BACKEND_LIB} 
     ${LABIMGUI_RENDER_SYSTEM})
 
@@ -250,9 +251,6 @@ install(FILES
     "resources/robots1.ase"
     "resources/invaders.ase"
     DESTINATION share/lab_font_demo)
-
-
-
 
 
 
@@ -296,9 +294,12 @@ target_include_directories(LabUsd SYSTEM PUBLIC
     ${CMAKE_BINARY_DIR}/include)
 
 target_link_libraries(LabUsd
-    ${CMAKE_BINARY_DIR}/libtbb.dylib
-    Lab::Imgui Lab::labfont ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
-    ${usd_libs_resolved})
+    libtbb.dylib
+    Lab::Imgui 
+    #Lab::labfont 
+    ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
+    ${PXR_LIBRARIES})
+    #${usd_libs_resolved})
 
 # Remove warnings coming from usd and enable default multithreaded compilation on windows
 target_compile_options(LabUsd PRIVATE

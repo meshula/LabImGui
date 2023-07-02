@@ -12,7 +12,7 @@ else()
 
     include(FetchContent)
     FetchContent_Declare(implot
-        GIT_REPOSITORY "https://github.com/meshula/implot.git"
+        GIT_REPOSITORY "https://github.com/epezent/implot"
         GIT_SHALLOW ON)
 
     FetchContent_GetProperties(implot)

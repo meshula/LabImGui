@@ -42,7 +42,8 @@ else()
 
         set_property(TARGET labfont PROPERTY CXX_STANDARD 17)
 
-        target_link_libraries(labfont PUBLIC RapidJSON::rapidjson sokol::sokol)
+        target_link_libraries(labfont INTERFACE rapidjson)
+        target_link_libraries(labfont PUBLIC sokol::sokol)
 
         install(
             TARGETS labfont

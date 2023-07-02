@@ -100,6 +100,7 @@ else()
                     "-framework MetalKit")
             else()
                 target_link_libraries(dearImgui PUBLIC
+                    "-framework GameController"
                     "-framework Metal"
                     "-framework MetalKit"
                     "-framework QuartzCore"
