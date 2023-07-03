@@ -524,21 +524,67 @@ void imgui_frame()
         pop.pop_back();
     }
 
-   ImGui::End();
+    ImGui::End();
 
     {
-        lab_WindowState ws;
-        lab_imgui_window_state("Radial Chart", &ws);
-        if (!ws.valid)
-            return;
-        
-        float hw = 0.5f * ws.width;
-        float hh = 0.5f * ws.height;
+        ImGui::SetNextWindowSize((ImVec2){800.f, 800.f});
+        ImGui::Begin("Radial Chart", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Button("WHOA");
+        if (ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+            ImGui::SetTooltip("%s", "/foo/bar");
+            ImGui::EndTooltip();
+        }
+
+        ImGuiWindow* win = ImGui::GetCurrentWindow();
+        ImRect edit_rect = win->ContentRegionRect;
+        ImGuiIO& io = ImGui::GetIO();
+        ImVec2 size(edit_rect.Max.x - edit_rect.Min.x, edit_rect.Max.y - edit_rect.Min.y);
+        ImGui::InvisibleButton("canvas", size);
+        ImVec2 p0 = ImGui::GetItemRectMin();
+        ImVec2 p1 = ImGui::GetItemRectMax();
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        draw_list->PushClipRect(p0, p1);
+
+        ImVec4 mouse_data;
+        mouse_data.x = (io.MousePos.x - p0.x) / size.x;
+        mouse_data.y = (io.MousePos.y - p0.y) / size.y;
+        mouse_data.z = io.MouseDownDuration[0];
+        mouse_data.w = io.MouseDownDuration[1];
+
+        //FX(draw_list, p0, p1, size, mouse_data, (float)ImGui::GetTime());
+
+        float hw = 0.5f * size.x + p0.x;
+        float hh = 0.5f * size.y + p0.y;
         
         RenderRadialChart(0, g_root, g_stats, hw, hh, 0, 2.f * PI, 0, 10);
         create_slices = false;
-    }
+        
+        draw_list->PopClipRect();
 
+        int id = 19999;
+        for (auto& i : slices) {
+            float r0 = (float) i.level * 20;
+            float r1 = r0 + 19;
+            float radius = (r0 + r1) * 0.5f;
+            float a0 = (i.a0 + i.a1) * 0.5f;
+            ImVec2 p0 = ImVec2(cosf(a0) * float(radius), sinf(a0) * float(radius));
+            p0.x += 0.5f * size.x + 8;
+            p0.y += 0.5f * size.y + 39;
+            ImGui::SetCursorPos(p0);
+            ImGui::PushID(id++);
+            ImGui::Text(".");
+            ImGui::PopID();
+            if (ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                ImGui::SetTooltip("%s", i.prim.GetPath().GetString().c_str());
+                ImGui::EndTooltip();
+            }
+        }
+
+        ImGui::End();
+    }
+    
     //static bool demo_window = false;
     //ImPlot::ShowDemoWindow(&demo_window);
 
