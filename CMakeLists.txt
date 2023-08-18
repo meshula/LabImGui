@@ -7,6 +7,7 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # make submodules respect CMP0077
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+<<<<<<< HEAD
 set(BUILD_USD ON)
 
 if (APPLE)
@@ -90,6 +91,16 @@ elseif("${LABAPP_BACKEND}" STREQUAL "mac-metal-sokol")
     set(IMGUI_BACKEND_SOKOL ON)
     set(IMGUI_BACKEND_WGPU OFF)
     set(IMGUI_BACKEND_WINAPI OFF) 
+elseif("${LABAPP_BACKEND}" STREQUAL "mac-gl-foundation")
+    set(IMGUI_BACKEND_D3D11 OFF)
+    set(IMGUI_BACKEND_DAWN OFF)
+    set(IMGUI_BACKEND_GLFW OFF)
+    set(IMGUI_BACKEND_OPENGL3 ON)
+    set(IMGUI_BACKEND_METAL OFF)
+    set(IMGUI_BACKEND_OSX ON)
+    set(IMGUI_BACKEND_SOKOL OFF)
+    set(IMGUI_BACKEND_WGPU OFF)
+    set(IMGUI_BACKEND_WINAPI OFF) 
 endif()
 
 set(WEBGPU_HEADER_LOCATION "${CMAKE_INSTALL_PREFIX}/include")
@@ -139,16 +150,23 @@ if (IMGUI_BACKEND_METAL AND IMGUI_BACKEND_OSX)
         LabImGui-cute_headers.cpp
         LabImGui-metal-cocoa.mm)
 endif()
+
+if (IMGUI_BACKEND_OPENGL3 AND IMGUI_BACKEND_OSX)
+    set(PLATFORM_SRC
+        LabImGui-gl-cocoa.mm)
+endif()
+
 if (IMGUI_BACKEND_WGPU)
     set(PLATFORM_SRC
         LabApp-wgpu-glfw.cpp)
     set(LABIMGUI_RENDER_SYSTEM
         dawncpp dawn_proc dawn_common dawn_native
         dawn_wire dawn_utils)
-else()
 endif()
 
-set(LABIMGUI_PUBLIC_H
+add_library(LabImgui STATIC
+    Widgets.cpp
+    fontmanager.cpp
     LabImGui/LabImGui.h
     LabImgui/FontManager.h
     LabImgui/Widgets.h
@@ -198,15 +216,30 @@ add_executable(LabImguiHello
     LabImguiHello.cpp
     LabDirectories.h
     LabDirectories.cpp)
+if (APPLE)
+    set(APPLE_FRAMEWORKS
+        "-framework AppKit"
+        "-framework CoreGraphics"
+        "-framework Foundation"
+        "-framework GameController"
+        "-framework Metal"
+        "-framework MetalKit"
+        "-framework QuartzCore"
+        "-framework OpenGL"
+    )
+    set(MAIN_EXT "mm")
+else()
+    set(MAIN_EXT "cpp")
+endif()
+
+add_executable(LabImguiHello LabImguiHello.${MAIN_EXT})
+target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui 
+    ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
+    ${APPLE_FRAMEWORKS})
 
 set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 
-target_link_libraries(LabImguiHello 
-    Lab::Imgui Lab::labfont
-    ${BACKEND_LIB} 
-    ${LABIMGUI_RENDER_SYSTEM})
-
-install(TARGETS LabImguiHello
+nstall(TARGETS LabImguiHello
     BUNDLE DESTINATION bin
     RUNTIME DESTINATION bin)
 
@@ -215,11 +248,6 @@ install(FILES
     "resources/robots1.ase"
     "resources/invaders.ase"
     DESTINATION share/lab_font_demo)
-
-
-
-
-
 
 function(pxr_whole libs result)
     set(final "")
@@ -266,6 +294,5 @@ target_link_libraries(LabUsd
 install(TARGETS LabUsd
     BUNDLE DESTINATION bin
     RUNTIME DESTINATION bin)
-
 
 

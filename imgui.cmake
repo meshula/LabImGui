@@ -77,6 +77,7 @@ else()
         )
 
         set_property(TARGET dearImgui PROPERTY CXX_STANDARD 17)
+        message(STATUS "IMGUI_BACKEND_WINAPI: ${IMGUI_BACKEND_WINAPI}")
 
         target_include_directories(dearImgui
             PUBLIC
