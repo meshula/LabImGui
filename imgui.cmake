@@ -65,6 +65,8 @@ else()
             $<$<BOOL:${IMGUI_BACKEND_WINAPI}>:${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp>
         )
 
+        message(STATUS "IMGUI_BACKEND_WINAPI: ${IMGUI_BACKEND_WINAPI}")
+
         set_property(TARGET imgui PROPERTY CXX_STANDARD 11)
 
         target_include_directories(imgui

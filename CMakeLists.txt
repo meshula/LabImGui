@@ -5,12 +5,12 @@ cmake_policy(SET CMP0077 NEW)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # configure Dear Imgui, once again, fetching it if necessary
-if(APPLE)
+if (APPLE)
     option(IMGUI_BACKEND_OSX "Native Mac backed" ON)
-    option(IMGUI_BACKEND_METAL "Metal renderer" ON)
-    option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" OFF)
+    option(IMGUI_BACKEND_METAL "Metal renderer" OFF)
+    option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" ON)
     option(IMGUI_BACKEND_GLFW "GLFW backend" OFF)
-elseif(WIN32)
+elseif (WIN32)
     option(IMGUI_BACKEND_OPENGL3 "OpenGL renderer" ON)
     option(IMGUI_BACKEND_SOKOL "Sokol backend" OFF)
     option(IMGUI_BACKEND_GLFW "GLFW backend" ON)
@@ -42,12 +42,14 @@ if (IMGUI_BACKEND_OPENGL3 AND IMGUI_BACKEND_GLFW)
         LabImGui-gl-glfw.cpp
         GL/gl3w.c)
     set(BACKEND_LIB glfw)
-endif()
-if (IMGUI_BACKEND_METAL)
+elseif (IMGUI_BACKEND_METAL AND IMGUI_BACKEND_OSX)
     set(PLATFORM_SRC
-        LabImGui-metal-cocoa.mm
-        LabImgui/LabImgui-metal-cocoa.h)
+        LabImGui-metal-cocoa.mm)
+elseif (IMGUI_BACKEND_OPENGL3 AND IMGUI_BACKEND_OSX)
+    set(PLATFORM_SRC
+        LabImGui-gl-cocoa.mm)
 endif()
+
 
 add_library(LabImgui STATIC
     Widgets.cpp
@@ -72,10 +74,29 @@ endif()
 
 add_library(Lab::Imgui ALIAS LabImgui)
 
-add_executable(LabImguiHello LabImguiHello.cpp)
-target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM})
+if (APPLE)
+    set(APPLE_FRAMEWORKS
+        "-framework AppKit"
+        "-framework CoreGraphics"
+        "-framework Foundation"
+        "-framework GameController"
+        "-framework Metal"
+        "-framework MetalKit"
+        "-framework QuartzCore"
+        "-framework OpenGL"
+    )
+    set(MAIN_EXT "mm")
+else()
+    set(MAIN_EXT "cpp")
+endif()
+
+add_executable(LabImguiHello LabImguiHello.${MAIN_EXT})
+target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui 
+    ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
+    ${APPLE_FRAMEWORKS})
+
+
 set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 install(TARGETS LabImguiHello
     BUNDLE DESTINATION bin
     RUNTIME DESTINATION bin)
-
