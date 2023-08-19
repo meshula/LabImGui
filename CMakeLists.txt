@@ -7,10 +7,10 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # make submodules respect CMP0077
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-<<<<<<< HEAD
-set(BUILD_USD ON)
+set(BUILD_USD OFF)
 
 if (APPLE)
+    #set(LABAPP_BACKEND "mac-gl-foundation" CACHE STRING "Backend")
     set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
     #set(LABAPP_BACKEND "mac-wgpu-glfw" CACHE STRING "Backend")
     #set(LABAPP_BACKEND "mac-metal-sokol" CACHE STRING "Backend")
@@ -109,6 +109,7 @@ if (IMGUI_BACKEND_OPENGL3)
     find_package(OpenGL REQUIRED)
 endif()
 if (IMGUI_BACKEND_GLFW)
+    message(STATUS "GLFW backend enabled")
     include(glfw.cmake)
     add_library(glfw3 ALIAS glfw)
 endif()
@@ -167,17 +168,6 @@ endif()
 add_library(LabImgui STATIC
     Widgets.cpp
     fontmanager.cpp
-    LabImGui/LabImGui.h
-    LabImgui/FontManager.h
-    LabImgui/Widgets.h
-    LabImgui/materialIconDefinitions.h
-    LabImgui/meshula-icons.h
-    LabImgui/roboto_regular.ttf.h
-    LabImgui/robotomono_regular.ttf.h
-)
-add_library(LabImgui STATIC
-    Widgets.cpp
-    fontmanager.cpp
     ${LABIMGUI_PUBLIC_H}
     ${PLATFORM_SRC}
 )
@@ -212,10 +202,6 @@ add_library(Lab::Imgui ALIAS LabImgui)
 
 #------------------ LabImguiHello
 #
-add_executable(LabImguiHello 
-    LabImguiHello.cpp
-    LabDirectories.h
-    LabDirectories.cpp)
 if (APPLE)
     set(APPLE_FRAMEWORKS
         "-framework AppKit"
@@ -232,14 +218,18 @@ else()
     set(MAIN_EXT "cpp")
 endif()
 
-add_executable(LabImguiHello LabImguiHello.${MAIN_EXT})
-target_link_libraries(LabImguiHello Dear::Imgui Lab::Imgui 
+add_executable(LabImguiHello 
+    LabDirectories.h
+    LabDirectories.cpp
+    LabImguiHello.${MAIN_EXT})
+
+target_link_libraries(LabImguiHello Dear::dearImgui Lab::Imgui 
     ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
     ${APPLE_FRAMEWORKS})
 
 set_property(TARGET LabImguiHello PROPERTY CXX_STANDARD 17)
 
-nstall(TARGETS LabImguiHello
+install(TARGETS LabImguiHello
     BUNDLE DESTINATION bin
     RUNTIME DESTINATION bin)
 
@@ -267,32 +257,34 @@ function(pxr_whole libs result)
     set(${result} ${final} PARENT_SCOPE)
 endfunction()
 
+if (BUILD_USD)
 
-set(usd_libs
-    arch gf js plug tf trace vt ar work kind ndr pcp
-    sdf sdr usd usdGeom usdHydra usdLux usdMedia usdPhysics
-    usdRi usdShade usdSkel usdUI usdUtils usdVol)
-set(usd_libs_resolved "")
-pxr_whole("${usd_libs}" usd_libs_resolved)
+    set(usd_libs
+        arch gf js plug tf trace vt ar work kind ndr pcp
+        sdf sdr usd usdGeom usdHydra usdLux usdMedia usdPhysics
+        usdRi usdShade usdSkel usdUI usdUtils usdVol)
+    set(usd_libs_resolved "")
+    pxr_whole("${usd_libs}" usd_libs_resolved)
 
-message(STATUS "${usd_libs_resolved}")
+    message(STATUS "${usd_libs_resolved}")
 
-add_executable(LabUsd
-    LabUsd.cpp
-    LabDirectories.h
-    LabDirectories.cpp)
+    add_executable(LabUsd
+        LabUsd.cpp
+        LabDirectories.h
+        LabDirectories.cpp)
 
-set_property(TARGET LabUsd PROPERTY CXX_STANDARD 17)
+    set_property(TARGET LabUsd PROPERTY CXX_STANDARD 17)
 
-target_include_directories(LabUsd SYSTEM PUBLIC ${CMAKE_BINARY_DIR}/include)
+    target_include_directories(LabUsd SYSTEM PUBLIC ${CMAKE_BINARY_DIR}/include)
 
-target_link_libraries(LabUsd
-    ${CMAKE_BINARY_DIR}/libtbb.dylib
-    Lab::Imgui Lab::labfont ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
-    ${usd_libs_resolved})
+    target_link_libraries(LabUsd
+        ${CMAKE_BINARY_DIR}/libtbb.dylib
+        Lab::Imgui Lab::labfont ${BACKEND_LIB} ${LABIMGUI_RENDER_SYSTEM}
+        ${usd_libs_resolved})
 
-install(TARGETS LabUsd
-    BUNDLE DESTINATION bin
-    RUNTIME DESTINATION bin)
+    install(TARGETS LabUsd
+        BUNDLE DESTINATION bin
+        RUNTIME DESTINATION bin)
 
+endif()
 

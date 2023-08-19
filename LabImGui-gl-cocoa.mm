@@ -34,6 +34,41 @@
 #endif
 }
 
+// Support function for multi-viewports
+// These functions need to be able to get the view associated to the viewport
+// but that's getting a bit tricky because of the multiple layers of abstraction.
+static void Hook_Renderer_CreateWindow(ImGuiViewport* viewport)
+{
+    // where's this view going to come frome? What class is it?
+    //viewport->RendererUserData = (__bridge_retained void*)view;
+}
+
+static void Hook_Renderer_DestroyWindow(ImGuiViewport* viewport)
+{
+    if (viewport->RendererUserData != NULL)
+    {
+        //AppView* view = (__bridge_transfer AppView*)viewport->RendererUserData;
+        //[view release];
+    }
+}
+
+static void Hook_Platform_RenderWindow(ImGuiViewport* viewport, void*)
+{
+    AppView* view = (AppView*)CFBridgingRelease(viewport->RendererUserData);
+    if (view) {
+        [[view openGLContext] makeCurrentContext];
+    }
+}
+
+static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
+{
+//    AppView* view = (AppView*)CFBridgingRelease(viewport->RendererUserData);
+//    if (view) {
+//        [[view openGLContext] swapBuffers];
+//    }
+}
+
+
 - (id)initWithFrame:(NSRect)frame
 {
     self = [super initWithFrame:frame];
@@ -60,8 +95,14 @@
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
     
+    // multiple viewports seems very incomplete on mac, at least the OpenGL
+    // case lacks setting the current context, so new windows render blank, and
+    // imgui renders in the main window only.
+    #ifndef __APPLE__
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
+    #endif
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     //ImGui::StyleColorsLight();
@@ -77,6 +118,18 @@
     // Setup Platform/Renderer backends
     ImGui_ImplOSX_Init(self);
     ImGui_ImplOpenGL3_Init();
+
+
+    // MacOS+GL needs specific hooks for viewport, as there are specific things needed to tie Win32 and GL api.
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+        platform_io.Renderer_CreateWindow = Hook_Renderer_CreateWindow;
+        platform_io.Renderer_DestroyWindow = Hook_Renderer_DestroyWindow;
+        platform_io.Renderer_SwapBuffers = Hook_Renderer_SwapBuffers;
+        platform_io.Platform_RenderWindow = Hook_Platform_RenderWindow;
+    }
+
     
     // Load Fonts
     // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -270,7 +323,7 @@
 @end
 
 extern "C"
-bool lab_imgui_init(int argc, char* argv[])
+bool lab_imgui_init(int argc, const char* argv[], const char* asset_root)
 {
     NSApplication* app = [NSApplication sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -281,7 +334,9 @@ bool lab_imgui_init(int argc, char* argv[])
 }
 
 extern "C"
-bool lab_imgui_create_window(const char* window_name, int width, int height, void(*frame)())
+bool lab_imgui_create_window(const char* window_name, int width, int height, 
+                             void (*custom_frame)(void),
+                             void (*imgui_frame)(void))
 {
 }
 
@@ -315,8 +370,6 @@ void lab_imgui_window_state(const char* window_name, lab_WindowState * s)
     s->valid = true;
 }
 
-
-
 extern "C"
 void lab_imgui_shutdown()
 {
@@ -347,8 +400,8 @@ void lab_imgui_new_docking_frame(const lab_WindowState* ws)
     window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
-
-    // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background and handle the pass-thru hole, so we ask Begin() to not render a background.
+    // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background 
+    // and handle the pass-thru hole, so we ask Begin() to not render a background.
     if (dockspace_flags & ImGuiDockNodeFlags_PassthruCentralNode)
         window_flags |= ImGuiWindowFlags_NoBackground;
 
@@ -358,7 +411,7 @@ void lab_imgui_new_docking_frame(const lab_WindowState* ws)
     // We cannot preserve the docking relationship between an active window and an inactive docking, otherwise 
     // any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin("DockSpace", nullptr, window_flags);
+    ImGui::Begin("Lab DockSpace", nullptr, window_flags);
     ImGui::PopStyleVar();
     ImGui::PopStyleVar(2);
 
@@ -391,7 +444,7 @@ void lab_imgui_new_docking_frame(const lab_WindowState* ws)
         }
     }
 
-    ImGui::End();
+    ImGui::End(); // end the docking space window
 }
 
 
@@ -419,7 +472,8 @@ lab_FullScreenMouseState lab_imgui_begin_fullscreen_docking(const lab_WindowStat
         ImGui::IsItemActive(),
         ImGui::IsItemHovered() };
 
-    ImGui::DockSpace(123456);
+    ImGuiID dockspace_id = ImGui::GetID("FullScreenDocking");
+    ImGui::DockSpace(dockspace_id);
 
     return r;
 }

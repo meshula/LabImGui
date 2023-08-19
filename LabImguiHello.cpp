@@ -38,7 +38,7 @@ void imgui_frame()
     lab_imgui_end_fullscreen_docking(&ws);
 }
 
-int main(int argv, char** argc) try
+int main(int argc, const char* argv[]) try
 {
     const char* asset_root = lab_application_resource_path(argc[0], "share/lab_font_demo/");
     lab_imgui_init(argc[0], asset_root);

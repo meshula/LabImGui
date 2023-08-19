@@ -1,22 +1,19 @@
 
 //#include <GL/gl3w.h>
 #include "LabImgui/LabImGui.h"
-
+#include "LabDirectories.h"
 #include "imgui.h"
+#include "implot.h"
 
 #include <exception>
 #include <iostream>
 
-void frame()
+void imgui_frame()
 {
     lab_WindowState ws;
     lab_imgui_window_state("Hello LabImGui", &ws);
     if (!ws.valid)
         return;
-
-    //------------ draw to the frame buffer
-
-    // custom stuff
 
     //------------ start the Dear ImGui portion
 
@@ -24,7 +21,6 @@ void frame()
     lab_imgui_begin_fullscreen_docking(&ws);
 
     //------------ custom begin
-
 
     ImGui::Begin("Hello LabImgui");
     ImGui::Button("hi!");
@@ -34,16 +30,20 @@ void frame()
     ImGui::Button("hi!###1");
     ImGui::End();
 
+    static bool demo_window = true;
+    ImPlot::ShowDemoWindow(&demo_window);
+
     //------------ custom end
 
     lab_imgui_end_fullscreen_docking(&ws);
 }
 
-int main(int argc, char* argv[]) try
+int main(int argc, const char* argv[]) try
 {
     @autoreleasepool {
-        lab_imgui_init(argc, argv);
-        lab_imgui_create_window("Hello LabImGui", 1024, 768, frame);
+        const char* asset_root = lab_application_resource_path(argv[0], "share/lab_font_demo/");
+        lab_imgui_init(argc, argv, asset_root);
+        lab_imgui_create_window("Hello LabImGui", 1024, 768, nullptr, imgui_frame);
         lab_imgui_shutdown();
     }
     return 0;
