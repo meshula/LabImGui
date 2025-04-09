@@ -10,8 +10,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(BUILD_USD OFF)
 
 if (APPLE)
-    #set(LABAPP_BACKEND "mac-gl-foundation" CACHE STRING "Backend")
-    set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
+    set(LABAPP_BACKEND "mac-gl-foundation" CACHE STRING "Backend")
+    #set(LABAPP_BACKEND "mac-metal-foundation" CACHE STRING "Backend")
     #set(LABAPP_BACKEND "mac-wgpu-glfw" CACHE STRING "Backend")
     #set(LABAPP_BACKEND "mac-metal-sokol" CACHE STRING "Backend")
 elseif (WIN32)
@@ -168,6 +168,8 @@ endif()
 add_library(LabImgui STATIC
     Widgets.cpp
     fontmanager.cpp
+    LabDirectories.h
+    LabDirectories.cpp
     ${LABIMGUI_PUBLIC_H}
     ${PLATFORM_SRC}
 )
@@ -218,9 +220,7 @@ else()
     set(MAIN_EXT "cpp")
 endif()
 
-add_executable(LabImguiHello 
-    LabDirectories.h
-    LabDirectories.cpp
+add_executable(LabImguiHello
     LabImguiHello.${MAIN_EXT})
 
 target_link_libraries(LabImguiHello Dear::dearImgui Lab::Imgui 

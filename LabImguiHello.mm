@@ -46,10 +46,10 @@ int main(int argc, const char* argv[]) try
         lab_imgui_create_window("Hello LabImGui", 1024, 768, nullptr, imgui_frame);
         lab_imgui_shutdown();
     }
-    return 0;
+    return EXIT_SUCCESS;
 }
 catch (std::exception& exc)
 {
     std::cerr << exc.what();
-    return -1;
+    return EXIT_FAILURE;
 }

@@ -7,6 +7,7 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_opengl3_loader.h"
 #include "imgui_impl_osx.h"
+#include "implot.h"
 
 #include "LabImgui/LabImGui.h"
 
@@ -18,6 +19,8 @@
 {
     NSTimer*    animationTimer;
 }
+@property (nonatomic, readonly) void (*custom_frame)(void); 
+@property (nonatomic, readonly) void (*imgui_frame)(void);
 @end
 
 @implementation AppView
@@ -69,11 +72,16 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
 }
 
 
-- (id)initWithFrame:(NSRect)frame
+- (id)initWithFrame:(NSRect)frame                 
+       custom_frame:(void (*)(void))custom_frame
+        imgui_frame:(void (*)(void))imgui_frame
 {
     self = [super initWithFrame:frame];
     if (!self)
         return self;
+
+    self->_custom_frame = custom_frame;
+    self->_imgui_frame = imgui_frame;
     
     NSOpenGLPixelFormatAttribute attrs[] =
     {
@@ -119,7 +127,6 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
     ImGui_ImplOSX_Init(self);
     ImGui_ImplOpenGL3_Init();
 
-
     // MacOS+GL needs specific hooks for viewport, as there are specific things needed to tie Win32 and GL api.
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
@@ -129,7 +136,6 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
         platform_io.Renderer_SwapBuffers = Hook_Renderer_SwapBuffers;
         platform_io.Platform_RenderWindow = Hook_Platform_RenderWindow;
     }
-
     
     // Load Fonts
     // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -147,6 +153,7 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != nullptr);
     
+    ImPlot::CreateContext();
     return self;
 }
 
@@ -157,47 +164,54 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplOSX_NewFrame(self);
     ImGui::NewFrame();
-
-    // Our state (make them static = more or less global) as a convenience to keep the example terse.
-    static bool show_demo_window = true;
-    static bool show_another_window = false;
     static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-    if (show_demo_window)
-        ImGui::ShowDemoWindow(&show_demo_window);
+    if (self.custom_frame)
+        self.custom_frame();
+    if (self.imgui_frame)
+        self.imgui_frame();
+    else {
+        // Our state (make them static = more or less global) as a convenience to keep the example terse.
+        static bool show_demo_window = true;
+        static bool show_another_window = false;
+        static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-    {
-        static float f = 0.0f;
-        static int counter = 0;
+        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+        if (show_demo_window)
+            ImGui::ShowDemoWindow(&show_demo_window);
 
-        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+        {
+            static float f = 0.0f;
+            static int counter = 0;
 
-        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-        ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-        ImGui::Checkbox("Another Window", &show_another_window);
+            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+            ImGui::Checkbox("Another Window", &show_another_window);
 
-        if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-            counter++;
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
+            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-        ImGui::End();
-    }
+            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+                counter++;
+            ImGui::SameLine();
+            ImGui::Text("counter = %d", counter);
 
-    // 3. Show another simple window.
-    if (show_another_window)
-    {
-        ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-        ImGui::Text("Hello from another window!");
-        if (ImGui::Button("Close Me"))
-            show_another_window = false;
-        ImGui::End();
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            ImGui::End();
+        }
+
+        // 3. Show another simple window.
+        if (show_another_window)
+        {
+            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+            ImGui::Text("Hello from another window!");
+            if (ImGui::Button("Close Me"))
+                show_another_window = false;
+            ImGui::End();
+        }
     }
 
     // Rendering
@@ -227,12 +241,17 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
         animationTimer = [NSTimer scheduledTimerWithTimeInterval:0.017 target:self selector:@selector(animationTimerFired:) userInfo:nil repeats:YES];
 }
 
--(void)reshape                              { [super reshape]; [[self openGLContext] update]; [self updateAndDrawDemoView]; }
+-(void)reshape {
+    [super reshape];
+    [[self openGLContext] update];
+    [self updateAndDrawDemoView];
+}
+
 -(void)drawRect:(NSRect)bounds              { [self updateAndDrawDemoView]; }
 -(void)animationTimerFired:(NSTimer*)timer  { [self setNeedsDisplay:YES]; }
 -(void)dealloc                              { animationTimer = nil; }
 
-@end
+@end // AppView
 
 
 //-----------------------------------------------------------------------------------
@@ -241,6 +260,11 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
 
 @interface LabImGuiAppDelegate : NSObject <NSApplicationDelegate>
 @property (nonatomic, readonly) NSWindow* window;
+@property (nonatomic, readonly) NSString* title;
+@property (nonatomic, readonly) int width;
+@property (nonatomic, readonly) int height;
+@property (nonatomic, readonly) void (*custom_frame)(void); 
+@property (nonatomic, readonly) void (*imgui_frame)(void);
 @end
 
 @implementation LabImGuiAppDelegate
@@ -259,10 +283,13 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
     if (_window != nil)
         return (_window);
 
-    NSRect viewRect = NSMakeRect(100.0, 100.0, 100.0 + 1280.0, 100 + 720.0);
+    NSRect viewRect = NSMakeRect(100.0, 100.0, 100.0 + self.width, 100 + self.height);
 
-    _window = [[NSWindow alloc] initWithContentRect:viewRect styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable|NSWindowStyleMaskClosable backing:NSBackingStoreBuffered defer:YES];
-    [_window setTitle:@"Dear ImGui OSX+OpenGL2 Example"];
+    _window = [[NSWindow alloc] initWithContentRect:viewRect 
+                                          styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable|NSWindowStyleMaskClosable 
+                                            backing:NSBackingStoreBuffered 
+                                              defer:YES];
+    [_window setTitle:self.title];
     [_window setAcceptsMouseMovedEvents:YES];
     [_window setOpaque:YES];
 
@@ -307,7 +334,9 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
     [self window];
 
     NSRect openGLFrame = [self.window contentRectForFrameRect:self.window.frame];
-    _view = [[AppView alloc] initWithFrame:openGLFrame];
+    _view = [[AppView alloc] initWithFrame:openGLFrame
+                              custom_frame:self.custom_frame
+                               imgui_frame:self.imgui_frame];
     if ([_view openGLContext] == nil)
         NSLog(@"No OpenGL Context!");
 
@@ -320,16 +349,29 @@ static void Hook_Renderer_SwapBuffers(ImGuiViewport* viewport, void*)
     [self.window makeKeyAndOrderFront:nil];
 }
 
-@end
+-(instancetype) initWithTitle:(NSString*)title 
+                        width:(int)width height:(int)height
+                 custom_frame:(void (*)(void))custom_frame
+                  imgui_frame:(void (*)(void))imgui_frame
+{
+    self = [super init];
+    if (!self)
+        return self;
+
+    self->_title = title;
+    self->_width = width;
+    self->_height = height;
+    self->_custom_frame = custom_frame;
+    self->_imgui_frame = imgui_frame;
+    return self;
+}
+
+@end // LabImGuiAppDelegate
 
 extern "C"
 bool lab_imgui_init(int argc, const char* argv[], const char* asset_root)
 {
-    NSApplication* app = [NSApplication sharedApplication];
-    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-    LabImGuiAppDelegate* delegate = [[LabImGuiAppDelegate alloc] init];
-    [app setDelegate:delegate];
-    [app run];
+    // nothing to be done for gl/cocoa.
     return true;
 }
 
@@ -338,6 +380,17 @@ bool lab_imgui_create_window(const char* window_name, int width, int height,
                              void (*custom_frame)(void),
                              void (*imgui_frame)(void))
 {
+    NSApplication* app = [NSApplication sharedApplication];
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+    NSString *title = [NSString stringWithUTF8String:window_name];
+    LabImGuiAppDelegate* delegate = [[LabImGuiAppDelegate alloc] 
+                                initWithTitle:title
+                                        width:width
+                                        height:height
+                                  custom_frame:custom_frame
+                                   imgui_frame:imgui_frame];
+    [app setDelegate:delegate];
+    [app run];
 }
 
 extern "C"
